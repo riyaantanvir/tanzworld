@@ -7,8 +7,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
 import { Progress } from "@/components/ui/progress";
+import type { GherTag, GherPartner, GherEntry } from "@shared/schema";
 
 type DateFilterType = "custom" | "thisMonth" | "lastMonth" | "thisYear";
+
+type DashboardStats = {
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+  expenseByTag: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+  incomeByTag: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+};
 
 export default function GherDashboard() {
   const [dateFilter, setDateFilter] = useState<DateFilterType>("custom");
@@ -17,11 +26,11 @@ export default function GherDashboard() {
   const [partnerId, setPartnerId] = useState("");
   const [selectedTagId, setSelectedTagId] = useState("");
 
-  const { data: partners = [] } = useQuery<any[]>({
+  const { data: partners = [] } = useQuery<GherPartner[]>({
     queryKey: ["/api/gher/partners"],
   });
 
-  const { data: tags = [] } = useQuery<any[]>({
+  const { data: tags = [] } = useQuery<GherTag[]>({
     queryKey: ["/api/gher/tags"],
   });
 
@@ -63,18 +72,18 @@ export default function GherDashboard() {
     netBalance: 0,
     expenseByTag: [],
     incomeByTag: [],
-  } } = useQuery<any>({
+  } } = useQuery<DashboardStats>({
     queryKey: ["/api/gher/dashboard-stats" + buildQueryString(), startDate, endDate, partnerId],
     enabled: true,
   });
 
-  const { data: allEntries = [] } = useQuery<any[]>({
+  const { data: allEntries = [] } = useQuery<GherEntry[]>({
     queryKey: ["/api/gher/entries" + buildQueryString(), startDate, endDate, partnerId],
   });
 
   const filteredEntriesByTag = useMemo(() => {
     if (!selectedTagId) return [];
-    return allEntries.filter((entry: any) => entry.tagId === selectedTagId);
+    return allEntries.filter(entry => entry.tagId === selectedTagId);
   }, [allEntries, selectedTagId]);
 
   const handleReset = () => {
@@ -85,13 +94,15 @@ export default function GherDashboard() {
     setSelectedTagId("");
   };
 
-  const getTagName = (tagId: string) => {
-    const tag = tags.find((t: any) => t.id === tagId);
+  const getTagName = (tagId: string | null) => {
+    if (!tagId) return "-";
+    const tag = tags.find(t => t.id === tagId);
     return tag?.name || "-";
   };
 
-  const getPartnerName = (partId: string) => {
-    const partner = partners.find((p: any) => p.id === partId);
+  const getPartnerName = (partId: string | null) => {
+    if (!partId) return "-";
+    const partner = partners.find(p => p.id === partId);
     return partner?.name || "-";
   };
 
@@ -174,7 +185,7 @@ export default function GherDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Partners</SelectItem>
-                      {partners.map((partner: any) => (
+                      {partners.map(partner => (
                         <SelectItem key={partner.id} value={partner.id}>
                           {partner.name}
                         </SelectItem>
@@ -190,7 +201,7 @@ export default function GherDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Tags</SelectItem>
-                      {tags.map((tag: any) => (
+                      {tags.map(tag => (
                         <SelectItem key={tag.id} value={tag.id}>
                           {tag.name}
                         </SelectItem>
@@ -254,7 +265,7 @@ export default function GherDashboard() {
                 {stats.expenseByTag.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No expense data available</p>
                 ) : (
-                  stats.expenseByTag.map((item: any) => (
+                  stats.expenseByTag.map(item => (
                     <div key={item.tagId || "untagged"} className="space-y-2" data-testid={`expense-tag-${item.tagId}`}>
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">{item.tagName}</span>
@@ -280,7 +291,7 @@ export default function GherDashboard() {
                 {stats.incomeByTag.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No income data available</p>
                 ) : (
-                  stats.incomeByTag.map((item: any) => (
+                  stats.incomeByTag.map(item => (
                     <div key={item.tagId || "untagged"} className="space-y-2" data-testid={`income-tag-${item.tagId}`}>
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">{item.tagName}</span>
@@ -321,7 +332,7 @@ export default function GherDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEntriesByTag.map((entry: any) => (
+                    {filteredEntriesByTag.map(entry => (
                       <TableRow key={entry.id} data-testid={`filtered-entry-${entry.id}`}>
                         <TableCell>{format(new Date(entry.date), "MMM dd, yyyy")}</TableCell>
                         <TableCell>
@@ -370,7 +381,7 @@ export default function GherDashboard() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    allEntries.map((entry: any) => (
+                    allEntries.map(entry => (
                       <TableRow key={entry.id} data-testid={`row-entry-${entry.id}`}>
                         <TableCell>{format(new Date(entry.date), "MMM dd, yyyy")}</TableCell>
                         <TableCell>
