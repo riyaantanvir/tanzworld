@@ -29,7 +29,10 @@ export default function GherSettings() {
       toast({ title: "Tag created successfully" });
       handleCloseDialog();
     },
-    onError: () => toast({ title: "Failed to create tag", variant: "destructive" }),
+    onError: (error: Error) => {
+      console.error("Tag creation error:", error);
+      toast({ title: "Failed to create tag", description: error.message, variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
