@@ -2594,30 +2594,75 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getGherDashboardStats(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<{ totalIncome: number; totalExpense: number; netBalance: number }> {
+  async getGherDashboardStats(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<{ 
+    totalIncome: number; 
+    totalExpense: number; 
+    netBalance: number;
+    expenseByTag: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+    incomeByTag: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+  }> {
     try {
       const entries = await this.getGherEntries(filters);
+      const allTags = await this.getGherTags();
       
       let totalIncome = 0;
       let totalExpense = 0;
+      const expenseByTagMap = new Map<string | null, number>();
+      const incomeByTagMap = new Map<string | null, number>();
       
       entries.forEach(entry => {
         const amount = parseFloat(entry.amount);
         if (entry.type === 'income') {
           totalIncome += amount;
+          const current = incomeByTagMap.get(entry.tagId) || 0;
+          incomeByTagMap.set(entry.tagId, current + amount);
         } else if (entry.type === 'expense') {
           totalExpense += amount;
+          const current = expenseByTagMap.get(entry.tagId) || 0;
+          expenseByTagMap.set(entry.tagId, current + amount);
         }
       });
+      
+      const expenseByTag = Array.from(expenseByTagMap.entries())
+        .map(([tagId, amount]) => {
+          const tag = allTags.find(t => t.id === tagId);
+          return {
+            tagId,
+            tagName: tag?.name || 'Untagged',
+            amount,
+            percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+          };
+        })
+        .sort((a, b) => b.amount - a.amount);
+      
+      const incomeByTag = Array.from(incomeByTagMap.entries())
+        .map(([tagId, amount]) => {
+          const tag = allTags.find(t => t.id === tagId);
+          return {
+            tagId,
+            tagName: tag?.name || 'Untagged',
+            amount,
+            percentage: totalIncome > 0 ? (amount / totalIncome) * 100 : 0,
+          };
+        })
+        .sort((a, b) => b.amount - a.amount);
       
       return {
         totalIncome,
         totalExpense,
         netBalance: totalIncome - totalExpense,
+        expenseByTag,
+        incomeByTag,
       };
     } catch (error) {
       console.error("[DB ERROR] Failed to get gher dashboard stats:", error);
-      return { totalIncome: 0, totalExpense: 0, netBalance: 0 };
+      return { 
+        totalIncome: 0, 
+        totalExpense: 0, 
+        netBalance: 0,
+        expenseByTag: [],
+        incomeByTag: [],
+      };
     }
   }
 }
