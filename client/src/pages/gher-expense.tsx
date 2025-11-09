@@ -26,15 +26,15 @@ export default function GherExpense() {
     partnerId: "",
   });
 
-  const { data: entries = [] } = useQuery({
+  const { data: entries = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/entries"],
   });
 
-  const { data: tags = [] } = useQuery({
+  const { data: tags = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/tags"],
   });
 
-  const { data: partners = [] } = useQuery({
+  const { data: partners = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/partners"],
   });
 

@@ -29,6 +29,7 @@ import {
   type Client,
   type User,
   type FarmingAccount,
+  type InsertFarmingAccount,
   type AdAccount,
   type AdCopySet,
   type WorkReport,
@@ -5526,7 +5527,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/gher/entries", authenticate, async (req: Request, res: Response) => {
     try {
-      const entry = await storage.createGherEntry(req.body);
+      const entryData = {
+        ...req.body,
+        date: new Date(req.body.date),
+      };
+      const entry = await storage.createGherEntry(entryData);
       res.status(201).json(entry);
     } catch (error) {
       console.error("Create gher entry error:", error);
@@ -5536,7 +5541,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/gher/entries/:id", authenticate, async (req: Request, res: Response) => {
     try {
-      const entry = await storage.updateGherEntry(req.params.id, req.body);
+      const updateData = {
+        ...req.body,
+        ...(req.body.date && { date: new Date(req.body.date) }),
+      };
+      const entry = await storage.updateGherEntry(req.params.id, updateData);
       if (!entry) {
         return res.status(404).json({ message: "Entry not found" });
       }
