@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Pencil, Trash2 } from "lucide-react";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function GherSettings() {
   const { toast } = useToast();
@@ -77,12 +78,14 @@ export default function GherSettings() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Gher Settings</h1>
-      </div>
+    <Sidebar>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Gher Settings</h1>
+          </div>
 
-      <Card>
+          <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>Expense Tags</CardTitle>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -158,6 +161,8 @@ export default function GherSettings() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+        </div>
+      </div>
+    </Sidebar>
   );
 }

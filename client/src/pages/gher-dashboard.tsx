@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function GherDashboard() {
   const [startDate, setStartDate] = useState("");
@@ -54,12 +55,14 @@ export default function GherDashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Gher Management Dashboard</h1>
-      </div>
+    <Sidebar>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Gher Management Dashboard</h1>
+          </div>
 
-      <Card>
+          <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
         </CardHeader>
@@ -195,6 +198,8 @@ export default function GherDashboard() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+        </div>
+      </div>
+    </Sidebar>
   );
 }

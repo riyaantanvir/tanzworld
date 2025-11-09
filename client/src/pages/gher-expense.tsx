@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function GherExpense() {
   const { toast } = useToast();
@@ -118,10 +119,12 @@ export default function GherExpense() {
   const getPartnerName = (partnerId: string) => partners.find((p: any) => p.id === partnerId)?.name || "-";
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Expense Management</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <Sidebar>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Expense Management</h1>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => handleCloseDialog()} data-testid="button-add-entry">
               Add New Entry
@@ -283,6 +286,8 @@ export default function GherExpense() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+        </div>
+      </div>
+    </Sidebar>
   );
 }
