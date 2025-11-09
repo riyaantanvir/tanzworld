@@ -243,6 +243,28 @@ export interface IStorage {
   deleteFarmingAccount(id: string): Promise<boolean>;
   importFarmingAccountsFromCsv(accounts: InsertFarmingAccount[]): Promise<{ success: number; errors: string[] }>;
   exportFarmingAccountsToCsv(includeSecrets: boolean): Promise<any[]>; // Admin only for secrets
+
+  // Gher Management - Tags
+  getGherTags(): Promise<any[]>;
+  getGherTag(id: string): Promise<any | undefined>;
+  createGherTag(tag: any): Promise<any>;
+  updateGherTag(id: string, tag: any): Promise<any | undefined>;
+  deleteGherTag(id: string): Promise<boolean>;
+
+  // Gher Management - Partners
+  getGherPartners(): Promise<any[]>;
+  getGherPartner(id: string): Promise<any | undefined>;
+  createGherPartner(partner: any): Promise<any>;
+  updateGherPartner(id: string, partner: any): Promise<any | undefined>;
+  deleteGherPartner(id: string): Promise<boolean>;
+
+  // Gher Management - Entries
+  getGherEntries(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<any[]>;
+  getGherEntry(id: string): Promise<any | undefined>;
+  createGherEntry(entry: any): Promise<any>;
+  updateGherEntry(id: string, entry: any): Promise<any | undefined>;
+  deleteGherEntry(id: string): Promise<boolean>;
+  getGherDashboardStats(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<{ totalIncome: number; totalExpense: number; netBalance: number }>;
 }
 
 export class MemStorage implements IStorage {

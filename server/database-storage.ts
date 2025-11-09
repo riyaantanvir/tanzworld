@@ -57,6 +57,12 @@ import {
   type FarmingAccount,
   type InsertFarmingAccount,
   type FarmingAccountWithSecrets,
+  type GherTag,
+  type InsertGherTag,
+  type GherPartner,
+  type InsertGherPartner,
+  type GherEntry,
+  type InsertGherEntry,
   UserRole,
   users,
   sessions,
@@ -90,7 +96,10 @@ import {
   campaignDrafts,
   campaignTemplates,
   savedAudiences,
-  farmingAccounts
+  farmingAccounts,
+  gherTags,
+  gherPartners,
+  gherEntries
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { eq, and, desc, gte, lte, or, like, sql } from "drizzle-orm";
@@ -2414,6 +2423,201 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("[DB ERROR] Failed to export farming accounts:", error);
       return [];
+    }
+  }
+
+  async getGherTags(): Promise<GherTag[]> {
+    try {
+      return await db.select().from(gherTags).orderBy(desc(gherTags.createdAt));
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch gher tags:", error);
+      return [];
+    }
+  }
+
+  async getGherTag(id: string): Promise<GherTag | undefined> {
+    try {
+      const result = await db.select().from(gherTags).where(eq(gherTags.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch gher tag:", error);
+      return undefined;
+    }
+  }
+
+  async createGherTag(tag: InsertGherTag): Promise<GherTag> {
+    try {
+      const result = await db.insert(gherTags).values(tag).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to create gher tag:", error);
+      throw error;
+    }
+  }
+
+  async updateGherTag(id: string, tag: Partial<InsertGherTag>): Promise<GherTag | undefined> {
+    try {
+      const result = await db.update(gherTags).set(tag).where(eq(gherTags.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to update gher tag:", error);
+      return undefined;
+    }
+  }
+
+  async deleteGherTag(id: string): Promise<boolean> {
+    try {
+      await db.delete(gherTags).where(eq(gherTags.id, id));
+      return true;
+    } catch (error) {
+      console.error("[DB ERROR] Failed to delete gher tag:", error);
+      return false;
+    }
+  }
+
+  async getGherPartners(): Promise<GherPartner[]> {
+    try {
+      return await db.select().from(gherPartners).orderBy(desc(gherPartners.createdAt));
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch gher partners:", error);
+      return [];
+    }
+  }
+
+  async getGherPartner(id: string): Promise<GherPartner | undefined> {
+    try {
+      const result = await db.select().from(gherPartners).where(eq(gherPartners.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch gher partner:", error);
+      return undefined;
+    }
+  }
+
+  async createGherPartner(partner: InsertGherPartner): Promise<GherPartner> {
+    try {
+      const result = await db.insert(gherPartners).values(partner).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to create gher partner:", error);
+      throw error;
+    }
+  }
+
+  async updateGherPartner(id: string, partner: Partial<InsertGherPartner>): Promise<GherPartner | undefined> {
+    try {
+      const result = await db.update(gherPartners).set(partner).where(eq(gherPartners.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to update gher partner:", error);
+      return undefined;
+    }
+  }
+
+  async deleteGherPartner(id: string): Promise<boolean> {
+    try {
+      await db.delete(gherPartners).where(eq(gherPartners.id, id));
+      return true;
+    } catch (error) {
+      console.error("[DB ERROR] Failed to delete gher partner:", error);
+      return false;
+    }
+  }
+
+  async getGherEntries(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<GherEntry[]> {
+    try {
+      let query = db.select().from(gherEntries);
+      
+      const conditions = [];
+      if (filters?.startDate) {
+        conditions.push(gte(gherEntries.date, filters.startDate));
+      }
+      if (filters?.endDate) {
+        conditions.push(lte(gherEntries.date, filters.endDate));
+      }
+      if (filters?.partnerId) {
+        conditions.push(eq(gherEntries.partnerId, filters.partnerId));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+      
+      return await query.orderBy(desc(gherEntries.date));
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch gher entries:", error);
+      return [];
+    }
+  }
+
+  async getGherEntry(id: string): Promise<GherEntry | undefined> {
+    try {
+      const result = await db.select().from(gherEntries).where(eq(gherEntries.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch gher entry:", error);
+      return undefined;
+    }
+  }
+
+  async createGherEntry(entry: InsertGherEntry): Promise<GherEntry> {
+    try {
+      const result = await db.insert(gherEntries).values(entry).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to create gher entry:", error);
+      throw error;
+    }
+  }
+
+  async updateGherEntry(id: string, entry: Partial<InsertGherEntry>): Promise<GherEntry | undefined> {
+    try {
+      const updateData = {
+        ...entry,
+        updatedAt: new Date(),
+      };
+      const result = await db.update(gherEntries).set(updateData).where(eq(gherEntries.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to update gher entry:", error);
+      return undefined;
+    }
+  }
+
+  async deleteGherEntry(id: string): Promise<boolean> {
+    try {
+      await db.delete(gherEntries).where(eq(gherEntries.id, id));
+      return true;
+    } catch (error) {
+      console.error("[DB ERROR] Failed to delete gher entry:", error);
+      return false;
+    }
+  }
+
+  async getGherDashboardStats(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<{ totalIncome: number; totalExpense: number; netBalance: number }> {
+    try {
+      const entries = await this.getGherEntries(filters);
+      
+      let totalIncome = 0;
+      let totalExpense = 0;
+      
+      entries.forEach(entry => {
+        const amount = parseFloat(entry.amount);
+        if (entry.type === 'income') {
+          totalIncome += amount;
+        } else if (entry.type === 'expense') {
+          totalExpense += amount;
+        }
+      });
+      
+      return {
+        totalIncome,
+        totalExpense,
+        netBalance: totalIncome - totalExpense,
+      };
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get gher dashboard stats:", error);
+      return { totalIncome: 0, totalExpense: 0, netBalance: 0 };
     }
   }
 }
