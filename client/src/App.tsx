@@ -25,6 +25,10 @@ import FBAdManagementPage from "@/pages/fb-ad-management";
 import AdvantixAdsManager from "@/pages/advantix-ads-manager";
 import NewCreatedPage from "@/pages/own-farming/new-created";
 import FarmingAccountsPage from "@/pages/own-farming/farming-accounts";
+import GherDashboard from "@/pages/gher-dashboard";
+import GherExpense from "@/pages/gher-expense";
+import GherPartner from "@/pages/gher-partner";
+import GherSettings from "@/pages/gher-settings";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -254,6 +258,10 @@ function Router() {
       <Route path="/advantix-ads" component={() => <ProtectedRoute component={AdvantixAdsManager} pageKey="advantix_ads_manager" />} />
       <Route path="/own-farming/new-created" component={() => <ProtectedRoute component={NewCreatedPage} pageKey="ownFarming" />} />
       <Route path="/own-farming/farming-accounts" component={() => <ProtectedRoute component={FarmingAccountsPage} pageKey="ownFarming" />} />
+      <Route path="/gher/dashboard" component={() => <ProtectedRoute component={GherDashboard} pageKey="gher_management" />} />
+      <Route path="/gher/expense" component={() => <ProtectedRoute component={GherExpense} pageKey="gher_management" />} />
+      <Route path="/gher/partner" component={() => <ProtectedRoute component={GherPartner} pageKey="gher_management" />} />
+      <Route path="/gher/settings" component={() => <ProtectedRoute component={GherSettings} pageKey="gher_management" />} />
       <Route path="/admin" component={() => <ProtectedRoute component={AdminPage} pageKey="admin" />} />
       <Route path="/" component={() => <ProtectedRoute component={Home} pageKey="dashboard" />} />
       <Route component={NotFound} />

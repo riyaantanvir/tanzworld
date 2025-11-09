@@ -23,7 +23,9 @@ import {
   Building2,
   Mail,
   Leaf,
-  Sparkles
+  Sparkles,
+  Home,
+  Receipt
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -194,6 +196,43 @@ export default function Sidebar({ children }: SidebarProps) {
           label: "Farming Accounts",
           testId: "nav-own-farming-farming-accounts",
           pageKey: "farmingAccounts"
+        }
+      ]
+    },
+    {
+      label: "Gher Management",
+      icon: Home,
+      testId: "nav-gher",
+      pageKey: "gher_management",
+      isSection: true,
+      subItems: [
+        {
+          href: "/gher/dashboard",
+          icon: LayoutDashboard,
+          label: "Dashboard",
+          testId: "nav-gher-dashboard",
+          pageKey: "gher_management"
+        },
+        {
+          href: "/gher/expense",
+          icon: Receipt,
+          label: "Expense",
+          testId: "nav-gher-expense",
+          pageKey: "gher_management"
+        },
+        {
+          href: "/gher/partner",
+          icon: Users,
+          label: "Partner",
+          testId: "nav-gher-partner",
+          pageKey: "gher_management"
+        },
+        {
+          href: "/gher/settings",
+          icon: Settings,
+          label: "Settings",
+          testId: "nav-gher-settings",
+          pageKey: "gher_management"
         }
       ]
     },
