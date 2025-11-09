@@ -5408,6 +5408,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gher Management - Tags
+  app.get("/api/gher/tags", authenticate, async (req: Request, res: Response) => {
+    try {
+      const tags = await storage.getGherTags();
+      res.json(tags);
+    } catch (error) {
+      console.error("Get gher tags error:", error);
+      res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  app.post("/api/gher/tags", authenticate, async (req: Request, res: Response) => {
+    try {
+      const tag = await storage.createGherTag(req.body);
+      res.status(201).json(tag);
+    } catch (error) {
+      console.error("Create gher tag error:", error);
+      res.status(500).json({ message: "Failed to create tag" });
+    }
+  });
+
+  app.patch("/api/gher/tags/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const tag = await storage.updateGherTag(req.params.id, req.body);
+      if (!tag) {
+        return res.status(404).json({ message: "Tag not found" });
+      }
+      res.json(tag);
+    } catch (error) {
+      console.error("Update gher tag error:", error);
+      res.status(500).json({ message: "Failed to update tag" });
+    }
+  });
+
+  app.delete("/api/gher/tags/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deleteGherTag(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Tag not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete gher tag error:", error);
+      res.status(500).json({ message: "Failed to delete tag" });
+    }
+  });
+
+  // Gher Management - Partners
+  app.get("/api/gher/partners", authenticate, async (req: Request, res: Response) => {
+    try {
+      const partners = await storage.getGherPartners();
+      res.json(partners);
+    } catch (error) {
+      console.error("Get gher partners error:", error);
+      res.status(500).json({ message: "Failed to fetch partners" });
+    }
+  });
+
+  app.post("/api/gher/partners", authenticate, async (req: Request, res: Response) => {
+    try {
+      const partner = await storage.createGherPartner(req.body);
+      res.status(201).json(partner);
+    } catch (error) {
+      console.error("Create gher partner error:", error);
+      res.status(500).json({ message: "Failed to create partner" });
+    }
+  });
+
+  app.patch("/api/gher/partners/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const partner = await storage.updateGherPartner(req.params.id, req.body);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      res.json(partner);
+    } catch (error) {
+      console.error("Update gher partner error:", error);
+      res.status(500).json({ message: "Failed to update partner" });
+    }
+  });
+
+  app.delete("/api/gher/partners/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deleteGherPartner(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete gher partner error:", error);
+      res.status(500).json({ message: "Failed to delete partner" });
+    }
+  });
+
+  // Gher Management - Entries
+  app.get("/api/gher/entries", authenticate, async (req: Request, res: Response) => {
+    try {
+      const filters: any = {};
+      if (req.query.startDate) {
+        filters.startDate = new Date(req.query.startDate as string);
+      }
+      if (req.query.endDate) {
+        filters.endDate = new Date(req.query.endDate as string);
+      }
+      if (req.query.partnerId) {
+        filters.partnerId = req.query.partnerId as string;
+      }
+      
+      const entries = await storage.getGherEntries(filters);
+      res.json(entries);
+    } catch (error) {
+      console.error("Get gher entries error:", error);
+      res.status(500).json({ message: "Failed to fetch entries" });
+    }
+  });
+
+  app.post("/api/gher/entries", authenticate, async (req: Request, res: Response) => {
+    try {
+      const entry = await storage.createGherEntry(req.body);
+      res.status(201).json(entry);
+    } catch (error) {
+      console.error("Create gher entry error:", error);
+      res.status(500).json({ message: "Failed to create entry" });
+    }
+  });
+
+  app.patch("/api/gher/entries/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const entry = await storage.updateGherEntry(req.params.id, req.body);
+      if (!entry) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      res.json(entry);
+    } catch (error) {
+      console.error("Update gher entry error:", error);
+      res.status(500).json({ message: "Failed to update entry" });
+    }
+  });
+
+  app.delete("/api/gher/entries/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deleteGherEntry(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete gher entry error:", error);
+      res.status(500).json({ message: "Failed to delete entry" });
+    }
+  });
+
+  // Gher Management - Dashboard Stats
+  app.get("/api/gher/dashboard-stats", authenticate, async (req: Request, res: Response) => {
+    try {
+      const filters: any = {};
+      if (req.query.startDate) {
+        filters.startDate = new Date(req.query.startDate as string);
+      }
+      if (req.query.endDate) {
+        filters.endDate = new Date(req.query.endDate as string);
+      }
+      if (req.query.partnerId) {
+        filters.partnerId = req.query.partnerId as string;
+      }
+      
+      const stats = await storage.getGherDashboardStats(filters);
+      res.json(stats);
+    } catch (error) {
+      console.error("Get gher dashboard stats error:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
