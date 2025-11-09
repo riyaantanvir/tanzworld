@@ -23,7 +23,7 @@ export default function GherSettings() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/gher/tags", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: any) => apiRequest("POST", "/api/gher/tags", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/tags"] });
       toast({ title: "Tag created successfully" });
@@ -34,7 +34,7 @@ export default function GherSettings() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest(`/api/gher/tags/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      apiRequest("PATCH", `/api/gher/tags/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/tags"] });
       toast({ title: "Tag updated successfully" });
@@ -44,7 +44,7 @@ export default function GherSettings() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/gher/tags/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/gher/tags/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/tags"] });
       toast({ title: "Tag deleted successfully" });

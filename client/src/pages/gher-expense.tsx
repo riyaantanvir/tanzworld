@@ -39,7 +39,7 @@ export default function GherExpense() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/gher/entries", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: any) => apiRequest("POST", "/api/gher/entries", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
@@ -51,7 +51,7 @@ export default function GherExpense() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest(`/api/gher/entries/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      apiRequest("PATCH", `/api/gher/entries/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
@@ -62,7 +62,7 @@ export default function GherExpense() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/gher/entries/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/gher/entries/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
@@ -167,12 +167,12 @@ export default function GherExpense() {
               </div>
               <div>
                 <Label>Partner</Label>
-                <Select value={formData.partnerId} onValueChange={(value) => setFormData({ ...formData, partnerId: value })}>
+                <Select value={formData.partnerId || "none"} onValueChange={(value) => setFormData({ ...formData, partnerId: value === "none" ? "" : value })}>
                   <SelectTrigger data-testid="select-entry-partner">
                     <SelectValue placeholder="Select partner" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {partners.map((partner: any) => (
                       <SelectItem key={partner.id} value={partner.id}>
                         {partner.name}
@@ -183,12 +183,12 @@ export default function GherExpense() {
               </div>
               <div>
                 <Label>Tag</Label>
-                <Select value={formData.tagId} onValueChange={(value) => setFormData({ ...formData, tagId: value })}>
+                <Select value={formData.tagId || "none"} onValueChange={(value) => setFormData({ ...formData, tagId: value === "none" ? "" : value })}>
                   <SelectTrigger data-testid="select-entry-tag">
                     <SelectValue placeholder="Select tag" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {tags.map((tag: any) => (
                       <SelectItem key={tag.id} value={tag.id}>
                         {tag.name}

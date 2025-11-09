@@ -15,13 +15,22 @@ export default function GherDashboard() {
     queryKey: ["/api/gher/partners"],
   });
 
+  const buildQueryString = () => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+    if (partnerId) params.append("partnerId", partnerId);
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  };
+
   const { data: stats = { totalIncome: 0, totalExpense: 0, netBalance: 0 } } = useQuery({
-    queryKey: ["/api/gher/dashboard-stats", { startDate, endDate, partnerId }],
+    queryKey: ["/api/gher/dashboard-stats" + buildQueryString(), startDate, endDate, partnerId],
     enabled: true,
   });
 
   const { data: entries = [] } = useQuery({
-    queryKey: ["/api/gher/entries", { startDate, endDate, partnerId }],
+    queryKey: ["/api/gher/entries" + buildQueryString(), startDate, endDate, partnerId],
   });
 
   const { data: tags = [] } = useQuery({
@@ -77,12 +86,12 @@ export default function GherDashboard() {
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Partner</label>
-            <Select value={partnerId} onValueChange={setPartnerId}>
+            <Select value={partnerId || "all"} onValueChange={(value) => setPartnerId(value === "all" ? "" : value)}>
               <SelectTrigger className="w-48" data-testid="select-partner">
                 <SelectValue placeholder="All Partners" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Partners</SelectItem>
+                <SelectItem value="all">All Partners</SelectItem>
                 {partners.map((partner: any) => (
                   <SelectItem key={partner.id} value={partner.id}>
                     {partner.name}

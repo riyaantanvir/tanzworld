@@ -24,7 +24,7 @@ export default function GherPartner() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/gher/partners", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: any) => apiRequest("POST", "/api/gher/partners", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners"] });
       toast({ title: "Partner created successfully" });
@@ -35,7 +35,7 @@ export default function GherPartner() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest(`/api/gher/partners/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      apiRequest("PATCH", `/api/gher/partners/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners"] });
       toast({ title: "Partner updated successfully" });
@@ -45,7 +45,7 @@ export default function GherPartner() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/gher/partners/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/gher/partners/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners"] });
       toast({ title: "Partner deleted successfully" });
