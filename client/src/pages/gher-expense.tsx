@@ -163,13 +163,18 @@ export default function GherExpense() {
 
         let successCount = 0;
         let errorCount = 0;
+        const errors: string[] = [];
 
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
 
           const values = line.split(",").map(v => v.trim());
-          if (values.length < 4) continue;
+          if (values.length < 4) {
+            errors.push(`Row ${i + 1}: Not enough columns`);
+            errorCount++;
+            continue;
+          }
 
           const [dateStr, details, type, amountStr, tagName] = values;
 
@@ -185,18 +190,21 @@ export default function GherExpense() {
             }
 
             if (isNaN(entryDate.getTime())) {
+              errors.push(`Row ${i + 1}: Invalid date "${dateStr}"`);
               errorCount++;
               continue;
             }
 
             const amount = parseFloat(amountStr);
             if (isNaN(amount)) {
+              errors.push(`Row ${i + 1}: Invalid amount "${amountStr}"`);
               errorCount++;
               continue;
             }
 
             const entryType = type.toLowerCase().trim();
             if (entryType !== "income" && entryType !== "expense") {
+              errors.push(`Row ${i + 1}: Invalid type "${type}" (must be "income" or "expense")`);
               errorCount++;
               continue;
             }
@@ -215,6 +223,7 @@ export default function GherExpense() {
             await apiRequest("POST", "/api/gher/entries", entryData);
             successCount++;
           } catch (error) {
+            errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
             errorCount++;
           }
         }
@@ -225,10 +234,20 @@ export default function GherExpense() {
         if (successCount > 0) {
           toast({ title: `Imported ${successCount} entries successfully${errorCount > 0 ? ` (${errorCount} failed)` : ""}` });
         } else {
-          toast({ title: "Failed to import entries", variant: "destructive" });
+          console.error("Import errors:", errors);
+          toast({ 
+            title: "Failed to import entries", 
+            description: errors.length > 0 ? errors[0] : "Please check the CSV format",
+            variant: "destructive" 
+          });
         }
       } catch (error) {
-        toast({ title: "Error reading CSV file", variant: "destructive" });
+        console.error("CSV import error:", error);
+        toast({ 
+          title: "Error reading CSV file", 
+          description: error instanceof Error ? error.message : "Unknown error",
+          variant: "destructive" 
+        });
       }
     };
 
