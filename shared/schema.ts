@@ -1029,3 +1029,49 @@ export type FarmingAccount = typeof farmingAccounts.$inferSelect;
 export interface FarmingAccountWithSecrets extends FarmingAccount {
   passwordDecrypted: string; // Copy of password field for consistency with frontend
 }
+
+// Gher Management - Expense/Income tracking with partners
+export const gherTags = pgTable("gher_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const gherPartners = pgTable("gher_partners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const gherEntries = pgTable("gher_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: timestamp("date").notNull(),
+  type: text("type").notNull(), // "income" or "expense"
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  details: text("details"),
+  tagId: varchar("tag_id").references(() => gherTags.id, { onDelete: "set null" }),
+  partnerId: varchar("partner_id").references(() => gherPartners.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => {
+  return {
+    typeCheck: sql`CHECK (${table.type} IN ('income', 'expense'))`
+  }
+});
+
+export const insertGherTagSchema = createInsertSchema(gherTags).omit({ id: true, createdAt: true });
+export type InsertGherTag = z.infer<typeof insertGherTagSchema>;
+export type GherTag = typeof gherTags.$inferSelect;
+
+export const insertGherPartnerSchema = createInsertSchema(gherPartners).omit({ id: true, createdAt: true });
+export type InsertGherPartner = z.infer<typeof insertGherPartnerSchema>;
+export type GherPartner = typeof gherPartners.$inferSelect;
+
+export const insertGherEntrySchema = createInsertSchema(gherEntries).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+});
+export type InsertGherEntry = z.infer<typeof insertGherEntrySchema>;
+export type GherEntry = typeof gherEntries.$inferSelect;
