@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
   - **Farming Accounts** (sub-menu for account management)
 - **Gher Management**: Complete financial tracking module for income/expense management with four dedicated pages:
   - **Dashboard**: Real-time analytics with date range and partner filters, displaying total income, total expenses, net profit/loss, and detailed transaction lists
-  - **Expense**: Inline form design (always visible, no dialog) for quick entry creation with fields for date, type (income/expense), amount (BDT), details, tag, and partner. Edit functionality populates the inline form and scrolls to top
+  - **Expense**: Inline form design (always visible, no dialog) for quick entry creation with fields for date, type (income/expense), amount (BDT), details, and tag. Edit functionality populates the inline form and scrolls to top. Includes CSV import/export functionality with example CSV download (format: Date, Details, Type, Amount (BDT), Tag). Import validates date parsing, amount format, and type field (income/expense only)
   - **Partner**: Partner management with name and phone number fields
   - **Settings**: Tag management for categorizing expenses
   - Uses shared Sidebar navigation component for consistent UX across all pages
