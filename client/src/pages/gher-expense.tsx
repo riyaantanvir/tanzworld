@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Download, Upload, FileDown } from "lucide-react";
 import { format } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
 
@@ -22,8 +22,8 @@ export default function GherExpense() {
     amount: "",
     details: "",
     tagId: "",
-    partnerId: "",
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: entries = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/entries"],
@@ -31,10 +31,6 @@ export default function GherExpense() {
 
   const { data: tags = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/tags"],
-  });
-
-  const { data: partners = [] } = useQuery<any[]>({
-    queryKey: ["/api/gher/partners"],
   });
 
   const createMutation = useMutation({
@@ -78,7 +74,6 @@ export default function GherExpense() {
       amount: "",
       details: "",
       tagId: "",
-      partnerId: "",
     });
   };
 
@@ -90,7 +85,6 @@ export default function GherExpense() {
       amount: entry.amount,
       details: entry.details || "",
       tagId: entry.tagId || "",
-      partnerId: entry.partnerId || "",
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -102,7 +96,7 @@ export default function GherExpense() {
       date: new Date(formData.date),
       amount: parseFloat(formData.amount),
       tagId: formData.tagId || null,
-      partnerId: formData.partnerId || null,
+      partnerId: null,
     };
 
     if (editingEntry) {
@@ -112,14 +106,169 @@ export default function GherExpense() {
     }
   };
 
+  const handleExportCSV = () => {
+    const csvHeaders = "Date,Details,Type,Amount (BDT),Tag\n";
+    const csvRows = entries.map((entry: any) => {
+      const date = format(new Date(entry.date), "MM/dd/yyyy");
+      const details = (entry.details || "").replace(/,/g, ";");
+      const type = entry.type;
+      const amount = parseFloat(entry.amount);
+      const tag = getTagName(entry.tagId);
+      return `${date},${details},${type},${amount},${tag}`;
+    }).join("\n");
+
+    const csvContent = csvHeaders + csvRows;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `gher-entries-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
+    toast({ title: "Entries exported successfully" });
+  };
+
+  const handleDownloadExample = () => {
+    const exampleCSV = `Date,Details,Type,Amount (BDT),Tag
+11/09/2025,Fish Feed Purchase,expense,5000,Feed
+11/08/2025,Fish Sale,income,15000,Sale
+11/07/2025,Electricity Bill,expense,800,Utilities`;
+    
+    const blob = new Blob([exampleCSV], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "gher-entries-example.csv";
+    link.click();
+    toast({ title: "Example CSV downloaded" });
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split("\n").filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          toast({ title: "Empty CSV file", variant: "destructive" });
+          return;
+        }
+
+        const header = lines[0].toLowerCase();
+        if (!header.includes("date") || !header.includes("type") || !header.includes("amount")) {
+          toast({ title: "Invalid CSV format. Please use the example format.", variant: "destructive" });
+          return;
+        }
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          const values = line.split(",").map(v => v.trim());
+          if (values.length < 4) continue;
+
+          const [dateStr, details, type, amountStr, tagName] = values;
+
+          try {
+            const dateParts = dateStr.split("/");
+            let entryDate: Date;
+            
+            if (dateParts.length === 3) {
+              const [month, day, year] = dateParts;
+              entryDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            } else {
+              entryDate = new Date(dateStr);
+            }
+
+            if (isNaN(entryDate.getTime())) {
+              errorCount++;
+              continue;
+            }
+
+            const amount = parseFloat(amountStr);
+            if (isNaN(amount)) {
+              errorCount++;
+              continue;
+            }
+
+            const entryType = type.toLowerCase().trim();
+            if (entryType !== "income" && entryType !== "expense") {
+              errorCount++;
+              continue;
+            }
+
+            const tag = tags.find((t: any) => t.name.toLowerCase() === tagName?.toLowerCase());
+
+            const entryData = {
+              date: entryDate,
+              type: entryType,
+              amount,
+              details: details || "",
+              tagId: tag?.id || null,
+              partnerId: null,
+            };
+
+            await apiRequest("POST", "/api/gher/entries", entryData);
+            successCount++;
+          } catch (error) {
+            errorCount++;
+          }
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["/api/gher/entries"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
+
+        if (successCount > 0) {
+          toast({ title: `Imported ${successCount} entries successfully${errorCount > 0 ? ` (${errorCount} failed)` : ""}` });
+        } else {
+          toast({ title: "Failed to import entries", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error reading CSV file", variant: "destructive" });
+      }
+    };
+
+    reader.readAsText(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const getTagName = (tagId: string) => tags.find((t: any) => t.id === tagId)?.name || "-";
-  const getPartnerName = (partnerId: string) => partners.find((p: any) => p.id === partnerId)?.name || "-";
 
   return (
     <Sidebar>
       <div className="flex-1 overflow-auto">
         <div className="p-6 space-y-6">
-          <h1 className="text-2xl font-semibold">Expense Management</h1>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h1 className="text-2xl font-semibold">Expense Management</h1>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" onClick={handleDownloadExample} data-testid="button-download-example">
+                <FileDown className="w-4 h-4 mr-2" />
+                Example CSV
+              </Button>
+              <Button variant="outline" onClick={handleExportCSV} data-testid="button-export-csv">
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="button-import-csv">
+                <Upload className="w-4 h-4 mr-2" />
+                Import CSV
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+                data-testid="input-csv-file"
+              />
+            </div>
+          </div>
 
           <Card>
             <CardHeader>
@@ -179,42 +328,22 @@ export default function GherExpense() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tag">Tag</Label>
-                    <Select value={formData.tagId || "none"} onValueChange={(value) => setFormData({ ...formData, tagId: value === "none" ? "" : value })}>
-                      <SelectTrigger id="tag" data-testid="select-entry-tag">
-                        <SelectValue placeholder="Select Tag" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Select Tag</SelectItem>
-                        {tags.map((tag: any) => (
-                          <SelectItem key={tag.id} value={tag.id}>
-                            {tag.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">Select from admin-defined tags</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="partner">Partner</Label>
-                    <Select value={formData.partnerId || "none"} onValueChange={(value) => setFormData({ ...formData, partnerId: value === "none" ? "" : value })}>
-                      <SelectTrigger id="partner" data-testid="select-entry-partner">
-                        <SelectValue placeholder="Select Partner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Select Partner</SelectItem>
-                        {partners.map((partner: any) => (
-                          <SelectItem key={partner.id} value={partner.id}>
-                            {partner.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">Select from admin-defined partners</p>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tag">Tag</Label>
+                  <Select value={formData.tagId || "none"} onValueChange={(value) => setFormData({ ...formData, tagId: value === "none" ? "" : value })}>
+                    <SelectTrigger id="tag" data-testid="select-entry-tag">
+                      <SelectValue placeholder="Select Tag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select Tag</SelectItem>
+                      {tags.map((tag: any) => (
+                        <SelectItem key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Select from admin-defined tags</p>
                 </div>
 
                 <div className="flex justify-end gap-2">
@@ -242,7 +371,6 @@ export default function GherExpense() {
                     <TableHead>Date</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Partner</TableHead>
                     <TableHead>Tag</TableHead>
                     <TableHead>Details</TableHead>
                     <TableHead>Actions</TableHead>
@@ -251,7 +379,7 @@ export default function GherExpense() {
                 <TableBody>
                   {entries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
                         No entries found
                       </TableCell>
                     </TableRow>
@@ -271,7 +399,6 @@ export default function GherExpense() {
                           </span>
                         </TableCell>
                         <TableCell>৳{parseFloat(entry.amount).toLocaleString()}</TableCell>
-                        <TableCell>{getPartnerName(entry.partnerId)}</TableCell>
                         <TableCell>{getTagName(entry.tagId)}</TableCell>
                         <TableCell className="max-w-xs truncate">{entry.details || "-"}</TableCell>
                         <TableCell>
