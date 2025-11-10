@@ -1039,7 +1039,8 @@ export class DatabaseStorage implements IStorage {
       'work_reports': 'workReports',
       'fb_ad_management': 'fbAdManagement',
       'finance': 'advantixDashboard', // Finance uses multiple fields, checking main one
-      'admin': 'adminPanel'
+      'admin': 'adminPanel',
+      'gher_management': 'gherManagement'
     };
 
     // If user has specific menu permissions set, use those for view action

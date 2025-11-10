@@ -157,6 +157,7 @@ function UserManagement() {
           salaryManagement: permission === 'salaryManagement' ? value : false,
           reports: permission === 'reports' ? value : false,
           adminPanel: permission === 'adminPanel' ? value : false,
+          gherManagement: permission === 'gherManagement' ? value : false,
         };
         const response = await apiRequest("POST", "/api/user-menu-permissions", newPermission);
         return response.json();
@@ -197,6 +198,7 @@ function UserManagement() {
         salaryManagement: false,
         reports: false,
         adminPanel: false,
+        gherManagement: false,
       };
     }
     return permission;
@@ -490,13 +492,14 @@ function UserManagement() {
                   <TableHead className="text-center font-semibold">New Created</TableHead>
                   <TableHead className="text-center font-semibold">Farming Accounts</TableHead>
                   <TableHead className="text-center font-semibold">Admin Panel</TableHead>
+                  <TableHead className="text-center font-semibold">Gher Management</TableHead>
                   <TableHead className="text-center font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={18} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={19} className="text-center py-8 text-gray-500">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -708,6 +711,18 @@ function UserManagement() {
                           </div>
                           <span className={`text-sm font-medium ${permissions.adminPanel ? 'text-green-600' : 'text-red-600'}`}>
                             {permissions.adminPanel ? 'Yes' : 'No'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Switch
+                              checked={permissions.gherManagement || false}
+                              onCheckedChange={(checked) => handlePermissionToggle(user.id, 'gherManagement', checked)}
+                              data-testid={`switch-gher-management-${user.id}`}
+                            />
+                          </div>
+                          <span className={`text-sm font-medium ${permissions.gherManagement ? 'text-green-600' : 'text-red-600'}`}>
+                            {permissions.gherManagement ? 'Yes' : 'No'}
                           </span>
                         </TableCell>
                         <TableCell className="text-center">

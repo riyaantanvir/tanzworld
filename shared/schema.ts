@@ -496,6 +496,7 @@ export const userMenuPermissions = pgTable("user_menu_permissions", {
   newCreated: boolean("new_created").default(false),
   farmingAccounts: boolean("farming_accounts").default(false),
   adminPanel: boolean("admin_panel").default(false),
+  gherManagement: boolean("gher_management").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => {

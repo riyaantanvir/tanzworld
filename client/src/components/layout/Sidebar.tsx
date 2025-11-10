@@ -394,6 +394,14 @@ export default function Sidebar({ children }: SidebarProps) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const gherManagementPermission = useQuery({
+    queryKey: [`/api/permissions/check/gher_management`],
+    enabled: !!user && user.role !== 'super_admin',
+    retry: false,
+    select: (data: any) => data?.hasPermission ?? false,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Helper function to get permission for each page
   const getPermissionForPage = (pageKey: string) => {
     switch (pageKey) {
@@ -409,6 +417,7 @@ export default function Sidebar({ children }: SidebarProps) {
       case 'fb_ad_management': return fbAdManagementPermission.data;
       case 'finance': return financePermission.data;
       case 'fishfire': return fishfirePermission.data;
+      case 'gher_management': return gherManagementPermission.data;
       default: return false;
     }
   };
