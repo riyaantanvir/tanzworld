@@ -7,8 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import type { GherTag, GherPartner, GherEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { usePagination } from "@/hooks/usePagination";
 
 type DateFilterType = "custom" | "thisMonth" | "lastMonth" | "thisYear";
 
@@ -97,6 +100,16 @@ export default function GherDashboard() {
     if (!selectedTagId) return [];
     return allEntries.filter(entry => entry.tagId === selectedTagId);
   }, [allEntries, selectedTagId]);
+
+  const allEntriesPagination = usePagination({ 
+    data: allEntries, 
+    pageSize: 10,
+    resetDeps: [startDate, endDate, partnerId]
+  });
+
+  const handleTagClick = (tagId: string | null) => {
+    setSelectedTagId(tagId || "");
+  };
 
   const handleReset = () => {
     const resetDate = new Date();
@@ -272,52 +285,88 @@ export default function GherDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Expense Breakdown by Tag</CardTitle>
+                <CardTitle className="text-lg flex items-center justify-between gap-2">
+                  <span>Expense Breakdown by Tag</span>
+                  {stats.expenseByTag.length > 0 && (
+                    <span className="text-sm text-muted-foreground font-normal">
+                      ({stats.expenseByTag.length} {stats.expenseByTag.length === 1 ? 'tag' : 'tags'})
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 {stats.expenseByTag.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No expense data available</p>
                 ) : (
-                  stats.expenseByTag.map(item => (
-                    <div key={item.tagId || "untagged"} className="space-y-2" data-testid={`expense-tag-${item.tagId}`}>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{item.tagName}</span>
-                        <span className="text-sm text-muted-foreground">{item.percentage.toFixed(1)}%</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-semibold text-red-600 dark:text-red-400">
-                          ৳{item.amount.toLocaleString()}
-                        </span>
-                      </div>
-                      <Progress value={item.percentage} className="h-2" />
+                  <ScrollArea className="h-96">
+                    <div className="space-y-4 pr-4">
+                      {stats.expenseByTag.map(item => (
+                        <div 
+                          key={item.tagId || "untagged"} 
+                          className={`space-y-2 p-3 rounded-md cursor-pointer transition-colors ${
+                            selectedTagId === item.tagId ? 'bg-accent' : 'hover-elevate'
+                          }`}
+                          onClick={() => handleTagClick(item.tagId)}
+                          data-testid={`expense-tag-${item.tagId}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{item.tagName}</span>
+                            <span className="text-sm text-muted-foreground">{item.percentage.toFixed(1)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-semibold text-red-600 dark:text-red-400">
+                              ৳{item.amount.toLocaleString()}
+                            </span>
+                          </div>
+                          <Progress value={item.percentage} className="h-2" />
+                        </div>
+                      ))}
                     </div>
-                  ))
+                  </ScrollArea>
                 )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Income Breakdown by Tag</CardTitle>
+                <CardTitle className="text-lg flex items-center justify-between gap-2">
+                  <span>Income Breakdown by Tag</span>
+                  {stats.incomeByTag.length > 0 && (
+                    <span className="text-sm text-muted-foreground font-normal">
+                      ({stats.incomeByTag.length} {stats.incomeByTag.length === 1 ? 'tag' : 'tags'})
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 {stats.incomeByTag.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No income data available</p>
                 ) : (
-                  stats.incomeByTag.map(item => (
-                    <div key={item.tagId || "untagged"} className="space-y-2" data-testid={`income-tag-${item.tagId}`}>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{item.tagName}</span>
-                        <span className="text-sm text-muted-foreground">{item.percentage.toFixed(1)}%</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-semibold text-green-600 dark:text-green-400">
-                          ৳{item.amount.toLocaleString()}
-                        </span>
-                      </div>
-                      <Progress value={item.percentage} className="h-2" />
+                  <ScrollArea className="h-96">
+                    <div className="space-y-4 pr-4">
+                      {stats.incomeByTag.map(item => (
+                        <div 
+                          key={item.tagId || "untagged"} 
+                          className={`space-y-2 p-3 rounded-md cursor-pointer transition-colors ${
+                            selectedTagId === item.tagId ? 'bg-accent' : 'hover-elevate'
+                          }`}
+                          onClick={() => handleTagClick(item.tagId)}
+                          data-testid={`income-tag-${item.tagId}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{item.tagName}</span>
+                            <span className="text-sm text-muted-foreground">{item.percentage.toFixed(1)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-semibold text-green-600 dark:text-green-400">
+                              ৳{item.amount.toLocaleString()}
+                            </span>
+                          </div>
+                          <Progress value={item.percentage} className="h-2" />
+                        </div>
+                      ))}
                     </div>
-                  ))
+                  </ScrollArea>
                 )}
               </CardContent>
             </Card>
@@ -329,11 +378,62 @@ export default function GherDashboard() {
                 <CardTitle>
                   Filtered Results: {getTagName(selectedTagId)}
                   <span className="text-sm text-muted-foreground ml-2">
-                    ({filteredEntriesByTag.length} entries)
+                    ({filteredEntriesByTag.length} {filteredEntriesByTag.length === 1 ? 'entry' : 'entries'})
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <ScrollArea className="h-96">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Partner</TableHead>
+                        <TableHead>Details</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEntriesByTag.map(entry => (
+                        <TableRow key={entry.id} data-testid={`filtered-entry-${entry.id}`}>
+                          <TableCell>{format(new Date(entry.date), "MMM dd, yyyy")}</TableCell>
+                          <TableCell>
+                            <span
+                              className={`px-2 py-1 rounded text-xs ${
+                                entry.type === "income"
+                                  ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                                  : "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300"
+                              }`}
+                            >
+                              {entry.type}
+                            </span>
+                          </TableCell>
+                          <TableCell>৳{parseFloat(entry.amount).toLocaleString()}</TableCell>
+                          <TableCell>{getPartnerName(entry.partnerId)}</TableCell>
+                          <TableCell className="max-w-xs truncate">{entry.details || "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-2">
+                <span>All Entries</span>
+                {allEntriesPagination.totalItems > 0 && (
+                  <span className="text-sm text-muted-foreground font-normal">
+                    ({allEntriesPagination.totalItems} {allEntriesPagination.totalItems === 1 ? 'entry' : 'entries'})
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -341,82 +441,74 @@ export default function GherDashboard() {
                       <TableHead>Type</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Partner</TableHead>
+                      <TableHead>Tag</TableHead>
                       <TableHead>Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEntriesByTag.map(entry => (
-                      <TableRow key={entry.id} data-testid={`filtered-entry-${entry.id}`}>
-                        <TableCell>{format(new Date(entry.date), "MMM dd, yyyy")}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              entry.type === "income"
-                                ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
-                                : "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300"
-                            }`}
-                          >
-                            {entry.type}
-                          </span>
+                    {allEntriesPagination.totalItems === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No entries found
                         </TableCell>
-                        <TableCell>৳{parseFloat(entry.amount).toLocaleString()}</TableCell>
-                        <TableCell>{getPartnerName(entry.partnerId)}</TableCell>
-                        <TableCell className="max-w-xs truncate">{entry.details || "-"}</TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      allEntriesPagination.currentItems.map(entry => (
+                        <TableRow key={entry.id} data-testid={`row-entry-${entry.id}`}>
+                          <TableCell>{format(new Date(entry.date), "MMM dd, yyyy")}</TableCell>
+                          <TableCell>
+                            <span
+                              className={`px-2 py-1 rounded text-xs ${
+                                entry.type === "income"
+                                  ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                                  : "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300"
+                              }`}
+                            >
+                              {entry.type}
+                            </span>
+                          </TableCell>
+                          <TableCell>৳{parseFloat(entry.amount).toLocaleString()}</TableCell>
+                          <TableCell>{getPartnerName(entry.partnerId)}</TableCell>
+                          <TableCell>{getTagName(entry.tagId)}</TableCell>
+                          <TableCell className="max-w-xs truncate">{entry.details || "-"}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>All Entries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Partner</TableHead>
-                    <TableHead>Tag</TableHead>
-                    <TableHead>Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allEntries.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        No entries found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    allEntries.map(entry => (
-                      <TableRow key={entry.id} data-testid={`row-entry-${entry.id}`}>
-                        <TableCell>{format(new Date(entry.date), "MMM dd, yyyy")}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              entry.type === "income"
-                                ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
-                                : "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300"
-                            }`}
-                          >
-                            {entry.type}
-                          </span>
-                        </TableCell>
-                        <TableCell>৳{parseFloat(entry.amount).toLocaleString()}</TableCell>
-                        <TableCell>{getPartnerName(entry.partnerId)}</TableCell>
-                        <TableCell>{getTagName(entry.tagId)}</TableCell>
-                        <TableCell className="max-w-xs truncate">{entry.details || "-"}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              </div>
+              {allEntriesPagination.totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => allEntriesPagination.previousPage()}
+                        className={!allEntriesPagination.hasPreviousPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        data-testid="button-all-prev"
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: allEntriesPagination.totalPages }, (_, i) => i + 1).map(page => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => allEntriesPagination.goToPage(page)}
+                          isActive={allEntriesPagination.currentPage === page}
+                          className="cursor-pointer"
+                          data-testid={`button-all-page-${page}`}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => allEntriesPagination.nextPage()}
+                        className={!allEntriesPagination.hasNextPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        data-testid="button-all-next"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </CardContent>
           </Card>
         </div>
