@@ -907,6 +907,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async deleteAllWorkReports(): Promise<number> {
+    try {
+      const result = await db.delete(workReports);
+      const deletedCount = result.rowCount ?? 0;
+      console.log(`[DB] Deleted all work reports (count: ${deletedCount})`);
+      return deletedCount;
+    } catch (error) {
+      console.error(`[DB ERROR] Failed to delete all work reports:`, error);
+      throw new Error(`Failed to delete all work reports: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   // Page methods
   async getPages(): Promise<Page[]> {
     try {

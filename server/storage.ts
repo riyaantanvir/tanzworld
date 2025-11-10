@@ -104,6 +104,7 @@ export interface IStorage {
   createWorkReport(workReport: InsertWorkReport): Promise<WorkReport>;
   updateWorkReport(id: string, workReport: Partial<InsertWorkReport>): Promise<WorkReport | undefined>;
   deleteWorkReport(id: string): Promise<boolean>;
+  deleteAllWorkReports(): Promise<number>; // Returns count of deleted reports
   
   // Page methods
   getPages(): Promise<Page[]>;
@@ -843,6 +844,12 @@ export class MemStorage implements IStorage {
 
   async deleteWorkReport(id: string): Promise<boolean> {
     return this.workReports.delete(id);
+  }
+
+  async deleteAllWorkReports(): Promise<number> {
+    const count = this.workReports.size;
+    this.workReports.clear();
+    return count;
   }
 
   // Page methods
