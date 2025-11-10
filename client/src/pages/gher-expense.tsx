@@ -178,6 +178,7 @@ export default function GherExpense() {
         let successCount = 0;
         let errorCount = 0;
         const errors: string[] = [];
+        const createdTags = new Map<string, string>();
 
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
@@ -223,10 +224,38 @@ export default function GherExpense() {
               continue;
             }
 
-            const tag = tags.find((t: any) => t.name.toLowerCase() === tagName?.toLowerCase());
+            let tagId: string | null = null;
             
-            if (tagName && !tag) {
-              errors.push(`Row ${i + 1}: Tag "${tagName}" not found. Create it in Settings first.`);
+            if (tagName && tagName.trim() !== "" && tagName !== "-") {
+              const normalizedTagName = tagName.trim().substring(0, 100);
+              const tagKey = normalizedTagName.toLowerCase();
+              
+              let tag = tags.find((t: any) => t.name.toLowerCase() === tagKey);
+              
+              if (tag) {
+                tagId = tag.id;
+              } else if (createdTags.has(tagKey)) {
+                tagId = createdTags.get(tagKey)!;
+              } else {
+                try {
+                  const response = await apiRequest("POST", "/api/gher/tags", { name: normalizedTagName });
+                  const newTag = await response.json();
+                  createdTags.set(tagKey, newTag.id);
+                  tagId = newTag.id;
+                  tags.push(newTag);
+                } catch (tagError: any) {
+                  const errorMsg = tagError?.message || "Unknown error";
+                  if (errorMsg.includes("unique") || errorMsg.includes("duplicate")) {
+                    const existingTag = tags.find((t: any) => t.name.toLowerCase() === tagKey);
+                    if (existingTag) {
+                      tagId = existingTag.id;
+                      createdTags.set(tagKey, existingTag.id);
+                    }
+                  } else {
+                    console.error(`Failed to create tag "${normalizedTagName}":`, tagError);
+                  }
+                }
+              }
             }
 
             const entryData = {
@@ -234,7 +263,7 @@ export default function GherExpense() {
               type: entryType,
               amount,
               details: details || "",
-              tagId: tag?.id || null,
+              tagId,
               partnerId: null,
             };
 
@@ -248,22 +277,26 @@ export default function GherExpense() {
 
         queryClient.invalidateQueries({ queryKey: ["/api/gher/entries"] });
         queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/gher/tags"] });
 
         if (successCount > 0) {
-          const warningMessages = errors.filter(e => e.includes("Tag") && e.includes("not found"));
-          const errorMessages = errors.filter(e => !warningMessages.includes(e));
+          const createdTagCount = createdTags.size;
+          let description = "";
           
-          if (warningMessages.length > 0) {
-            console.warn("Tag warnings:", warningMessages);
+          if (createdTagCount > 0) {
+            description = `Created ${createdTagCount} new tag(s) automatically`;
+          }
+          
+          if (errorCount > 0) {
             toast({ 
-              title: `Imported ${successCount} entries (${warningMessages.length} without tags)`,
-              description: `${warningMessages.length} entries missing tags. Create tags in Settings first.`,
-              variant: "default"
+              title: `Imported ${successCount} entries (${errorCount} failed)`,
+              description: description || undefined
             });
-          } else if (errorCount > 0) {
-            toast({ title: `Imported ${successCount} entries successfully (${errorCount} failed)` });
           } else {
-            toast({ title: `Imported ${successCount} entries successfully` });
+            toast({ 
+              title: `Imported ${successCount} entries successfully`,
+              description: description || undefined
+            });
           }
         } else {
           console.error("Import errors:", errors);
