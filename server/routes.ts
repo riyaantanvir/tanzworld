@@ -5545,6 +5545,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(entry);
     } catch (error) {
       console.error("Create gher entry error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to create entry";
+      if (errorMessage.includes("Cannot use") || errorMessage.includes("Tag with ID")) {
+        return res.status(400).json({ message: errorMessage });
+      }
       res.status(500).json({ message: "Failed to create entry" });
     }
   });
@@ -5562,6 +5566,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(entry);
     } catch (error) {
       console.error("Update gher entry error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to update entry";
+      if (errorMessage.includes("Cannot use") || errorMessage.includes("Tag with ID")) {
+        return res.status(400).json({ message: errorMessage });
+      }
       res.status(500).json({ message: "Failed to update entry" });
     }
   });

@@ -2574,6 +2574,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGherEntry(entry: InsertGherEntry): Promise<GherEntry> {
+    if (entry.tagId) {
+      const tag = await this.getGherTag(entry.tagId);
+      if (!tag) {
+        throw new Error(`Tag with ID ${entry.tagId} not found`);
+      }
+      if (tag.type !== entry.type) {
+        throw new Error(`Cannot use ${tag.type} tag "${tag.name}" for ${entry.type} entry. Please select a ${entry.type} tag.`);
+      }
+    }
+    
     try {
       const result = await db.insert(gherEntries).values(entry).returning();
       return result[0];
@@ -2584,6 +2594,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGherEntry(id: string, entry: Partial<InsertGherEntry>): Promise<GherEntry | undefined> {
+    const existingEntry = await this.getGherEntry(id);
+    if (!existingEntry) {
+      return undefined;
+    }
+    
+    const entryType = entry.type || existingEntry.type;
+    const tagId = entry.tagId !== undefined ? entry.tagId : existingEntry.tagId;
+    
+    if (tagId) {
+      const tag = await this.getGherTag(tagId);
+      if (!tag) {
+        throw new Error(`Tag with ID ${tagId} not found`);
+      }
+      if (tag.type !== entryType) {
+        throw new Error(`Cannot use ${tag.type} tag "${tag.name}" for ${entryType} entry. Please select a ${entryType} tag.`);
+      }
+    }
+    
     try {
       const updateData = {
         ...entry,
@@ -2593,7 +2621,7 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     } catch (error) {
       console.error("[DB ERROR] Failed to update gher entry:", error);
-      return undefined;
+      throw error;
     }
   }
 
