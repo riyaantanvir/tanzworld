@@ -210,6 +210,10 @@ export default function GherExpense() {
             }
 
             const tag = tags.find((t: any) => t.name.toLowerCase() === tagName?.toLowerCase());
+            
+            if (tagName && !tag) {
+              errors.push(`Row ${i + 1}: Tag "${tagName}" not found. Create it in Settings first.`);
+            }
 
             const entryData = {
               date: entryDate,
@@ -232,7 +236,21 @@ export default function GherExpense() {
         queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
 
         if (successCount > 0) {
-          toast({ title: `Imported ${successCount} entries successfully${errorCount > 0 ? ` (${errorCount} failed)` : ""}` });
+          const warningMessages = errors.filter(e => e.includes("Tag") && e.includes("not found"));
+          const errorMessages = errors.filter(e => !warningMessages.includes(e));
+          
+          if (warningMessages.length > 0) {
+            console.warn("Tag warnings:", warningMessages);
+            toast({ 
+              title: `Imported ${successCount} entries (${warningMessages.length} without tags)`,
+              description: `${warningMessages.length} entries missing tags. Create tags in Settings first.`,
+              variant: "default"
+            });
+          } else if (errorCount > 0) {
+            toast({ title: `Imported ${successCount} entries successfully (${errorCount} failed)` });
+          } else {
+            toast({ title: `Imported ${successCount} entries successfully` });
+          }
         } else {
           console.error("Import errors:", errors);
           toast({ 
