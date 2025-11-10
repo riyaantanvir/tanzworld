@@ -1889,6 +1889,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete all work reports - Admin only (MUST come before /:id route)
+  app.delete("/api/work-reports/all", authenticate, async (req: Request, res: Response) => {
+    try {
+      // Only admins can delete all work reports
+      const isAdmin = req.user!.role === UserRole.ADMIN || req.user!.role === UserRole.SUPER_ADMIN;
+      
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Access denied. Only administrators can delete all work reports." });
+      }
+      
+      const deletedCount = await storage.deleteAllWorkReports();
+      
+      res.json({ 
+        message: "All work reports deleted successfully",
+        deletedCount 
+      });
+    } catch (error) {
+      console.error("Error deleting all work reports:", error);
+      res.status(500).json({ message: "Failed to delete work reports" });
+    }
+  });
+
   // Delete work report - check ownership or admin access
   app.delete("/api/work-reports/:id", authenticate, requirePagePermission('work_reports', 'delete'), async (req: Request, res: Response) => {
     try {
@@ -1913,28 +1935,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Work report deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete work report" });
-    }
-  });
-
-  // Delete all work reports - Admin only
-  app.delete("/api/work-reports/all", authenticate, async (req: Request, res: Response) => {
-    try {
-      // Only admins can delete all work reports
-      const isAdmin = req.user!.role === UserRole.ADMIN || req.user!.role === UserRole.SUPER_ADMIN;
-      
-      if (!isAdmin) {
-        return res.status(403).json({ message: "Access denied. Only administrators can delete all work reports." });
-      }
-      
-      const deletedCount = await storage.deleteAllWorkReports();
-      
-      res.json({ 
-        message: "All work reports deleted successfully",
-        deletedCount 
-      });
-    } catch (error) {
-      console.error("Error deleting all work reports:", error);
-      res.status(500).json({ message: "Failed to delete work reports" });
     }
   });
 
