@@ -142,6 +142,7 @@ export interface IStorage {
   createFinanceExpense(expense: InsertFinanceExpense): Promise<FinanceExpense>;
   updateFinanceExpense(id: string, expense: Partial<InsertFinanceExpense>): Promise<FinanceExpense | undefined>;
   deleteFinanceExpense(id: string): Promise<boolean>;
+  deleteAllFinanceExpenses(): Promise<number>;
 
   // Finance Settings methods
   getFinanceSetting(key: string): Promise<FinanceSetting | undefined>;
@@ -1206,6 +1207,12 @@ export class MemStorage implements IStorage {
 
   async deleteFinanceExpense(id: string): Promise<boolean> {
     return this.financeExpenses.delete(id);
+  }
+
+  async deleteAllFinanceExpenses(): Promise<number> {
+    const count = this.financeExpenses.size;
+    this.financeExpenses.clear();
+    return count;
   }
 
   // Finance Settings methods

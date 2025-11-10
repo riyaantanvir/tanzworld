@@ -2264,6 +2264,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/finance/expenses/delete-all", authenticate, requirePagePermission('finance', 'delete'), async (req: Request, res: Response) => {
+    try {
+      const count = await storage.deleteAllFinanceExpenses();
+      res.json({ message: `${count} expense(s) deleted successfully`, count });
+    } catch (error) {
+      console.error("Delete all finance expenses error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // CSV Preview for expenses (Step 1: Show data before importing)
   app.post("/api/finance/expenses/import-csv/preview", authenticate, requirePagePermission('finance', 'edit'), upload.single('csvFile'), async (req: Request, res: Response) => {
     try {

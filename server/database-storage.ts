@@ -1240,6 +1240,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async deleteAllFinanceExpenses(): Promise<number> {
+    try {
+      const result = await db.delete(financeExpenses);
+      const count = result.rowCount ?? 0;
+      console.log(`[DB] Deleted all ${count} finance expenses`);
+      return count;
+    } catch (error) {
+      console.error(`[DB ERROR] Failed to delete all finance expenses:`, error);
+      throw new Error(`Failed to delete all finance expenses: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   // Finance Setting methods
   async getFinanceSetting(key: string): Promise<FinanceSetting | undefined> {
     try {

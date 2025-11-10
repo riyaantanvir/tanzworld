@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -127,6 +128,29 @@ export default function FinanceExpenses() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete expense.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete all expenses mutation
+  const deleteAllExpensesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/finance/expenses/delete-all");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finance/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/finance/dashboard"] });
+      toast({
+        title: "Success",
+        description: data.message || "All expenses deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete all expenses.",
         variant: "destructive",
       });
     },
@@ -409,11 +433,40 @@ export default function FinanceExpenses() {
           </p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={exportExpensesCSV} data-testid="button-export-csv">
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" data-testid="button-delete-all">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete All
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete all {expenses?.length || 0} expense(s) and salary payment(s) from the database.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete-all">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteAllExpensesMutation.mutate()}
+                  disabled={deleteAllExpensesMutation.isPending}
+                  data-testid="button-confirm-delete-all"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteAllExpensesMutation.isPending ? "Deleting..." : "Delete All"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" onClick={() => setIsImportDialogOpen(true)} data-testid="button-import-csv">
