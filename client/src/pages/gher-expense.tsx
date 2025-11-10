@@ -228,9 +228,12 @@ export default function GherExpense() {
             
             if (tagName && tagName.trim() !== "" && tagName !== "-") {
               const normalizedTagName = tagName.trim().substring(0, 100);
-              const tagKey = normalizedTagName.toLowerCase();
+              const tagKey = `${entryType}:${normalizedTagName.toLowerCase()}`;
               
-              let tag = tags.find((t: any) => t.name.toLowerCase() === tagKey);
+              let tag = tags.find((t: any) => 
+                t.name.toLowerCase() === normalizedTagName.toLowerCase() && 
+                t.type === entryType
+              );
               
               if (tag) {
                 tagId = tag.id;
@@ -238,7 +241,10 @@ export default function GherExpense() {
                 tagId = createdTags.get(tagKey)!;
               } else {
                 try {
-                  const response = await apiRequest("POST", "/api/gher/tags", { name: normalizedTagName });
+                  const response = await apiRequest("POST", "/api/gher/tags", { 
+                    name: normalizedTagName,
+                    type: entryType 
+                  });
                   const newTag = await response.json();
                   createdTags.set(tagKey, newTag.id);
                   tagId = newTag.id;
@@ -246,7 +252,10 @@ export default function GherExpense() {
                 } catch (tagError: any) {
                   const errorMsg = tagError?.message || "Unknown error";
                   if (errorMsg.includes("unique") || errorMsg.includes("duplicate")) {
-                    const existingTag = tags.find((t: any) => t.name.toLowerCase() === tagKey);
+                    const existingTag = tags.find((t: any) => 
+                      t.name.toLowerCase() === normalizedTagName.toLowerCase() && 
+                      t.type === entryType
+                    );
                     if (existingTag) {
                       tagId = existingTag.id;
                       createdTags.set(tagKey, existingTag.id);

@@ -1,10 +1,11 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -17,11 +18,19 @@ export default function GherSettings() {
   const [editingTag, setEditingTag] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
+    type: "expense" as "income" | "expense",
   });
 
   const { data: tags = [] } = useQuery({
     queryKey: ["/api/gher/tags"],
   });
+
+  const { incomeTags, expenseTags } = useMemo(() => {
+    const allTags = tags as any[];
+    const income = allTags.filter((t: any) => t.type === "income");
+    const expense = allTags.filter((t: any) => t.type === "expense");
+    return { incomeTags: income, expenseTags: expense };
+  }, [tags]);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/gher/tags", data),
@@ -59,12 +68,17 @@ export default function GherSettings() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingTag(null);
-    setFormData({ name: "" });
+    setFormData({ name: "", type: "expense" });
+  };
+
+  const handleOpenDialog = (type: "income" | "expense") => {
+    setFormData({ name: "", type });
+    setIsDialogOpen(true);
   };
 
   const handleEdit = (tag: any) => {
     setEditingTag(tag);
-    setFormData({ name: tag.name });
+    setFormData({ name: tag.name, type: tag.type });
     setIsDialogOpen(true);
   };
 
@@ -77,6 +91,57 @@ export default function GherSettings() {
     }
   };
 
+  const renderTagSection = (title: string, tagList: any[], type: "income" | "expense") => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardTitle>{title}</CardTitle>
+        <Button onClick={() => handleOpenDialog(type)} data-testid={`button-add-${type}-tag`}>
+          Create Tag
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tag Name</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tagList.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={2} className="text-center text-muted-foreground">
+                  No {type} tags found
+                </TableCell>
+              </TableRow>
+            ) : (
+              tagList.map((tag: any) => (
+                <TableRow key={tag.id} data-testid={`row-tag-${tag.id}`}>
+                  <TableCell>{tag.name}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button size="icon" variant="ghost" onClick={() => handleEdit(tag)} data-testid={`button-edit-${tag.id}`}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => deleteMutation.mutate(tag.id)}
+                        data-testid={`button-delete-${tag.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <Sidebar>
       <div className="flex-1 overflow-auto">
@@ -85,15 +150,10 @@ export default function GherSettings() {
             <h1 className="text-2xl font-semibold">Gher Settings</h1>
           </div>
 
-          <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <CardTitle>Expense Tags</CardTitle>
+          {renderTagSection("Income Tags", incomeTags, "income")}
+          {renderTagSection("Expense Tags", expenseTags, "expense")}
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => handleCloseDialog()} data-testid="button-add-tag">
-                Create Tag
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{editingTag ? "Edit Tag" : "Create New Tag"}</DialogTitle>
@@ -108,6 +168,26 @@ export default function GherSettings() {
                     data-testid="input-tag-name"
                   />
                 </div>
+                <div>
+                  <Label>Tag Type</Label>
+                  <RadioGroup
+                    value={formData.type}
+                    onValueChange={(value: "income" | "expense") => setFormData({ ...formData, type: value })}
+                    disabled={!!editingTag}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="income" id="income" data-testid="radio-income" />
+                      <Label htmlFor="income">Income</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="expense" id="expense" data-testid="radio-expense" />
+                      <Label htmlFor="expense">Expense</Label>
+                    </div>
+                  </RadioGroup>
+                  {editingTag && (
+                    <p className="text-sm text-muted-foreground mt-1">Tag type cannot be changed after creation</p>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-tag">
                     {editingTag ? "Update" : "Create"}
@@ -119,48 +199,6 @@ export default function GherSettings() {
               </form>
             </DialogContent>
           </Dialog>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tag Name</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tags.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center text-muted-foreground">
-                    No tags found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tags.map((tag: any) => (
-                  <TableRow key={tag.id} data-testid={`row-tag-${tag.id}`}>
-                    <TableCell>{tag.name}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(tag)} data-testid={`button-edit-${tag.id}`}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => deleteMutation.mutate(tag.id)}
-                          data-testid={`button-delete-${tag.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
         </div>
       </div>
     </Sidebar>

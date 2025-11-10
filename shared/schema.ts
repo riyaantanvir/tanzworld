@@ -1034,8 +1034,14 @@ export interface FarmingAccountWithSecrets extends FarmingAccount {
 // Gher Management - Expense/Income tracking with partners
 export const gherTags = pgTable("gher_tags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("expense"), // "income" or "expense"
   createdAt: timestamp("created_at").defaultNow(),
+}, (table) => {
+  return {
+    typeCheck: sql`CHECK (${table.type} IN ('income', 'expense'))`,
+    nameTypeUnique: unique().on(table.name, table.type),
+  };
 });
 
 export const gherPartners = pgTable("gher_partners", {
@@ -1061,7 +1067,9 @@ export const gherEntries = pgTable("gher_entries", {
   }
 });
 
-export const insertGherTagSchema = createInsertSchema(gherTags).omit({ id: true, createdAt: true });
+export const insertGherTagSchema = createInsertSchema(gherTags).omit({ id: true, createdAt: true }).extend({
+  type: z.enum(["income", "expense"]),
+});
 export type InsertGherTag = z.infer<typeof insertGherTagSchema>;
 export type GherTag = typeof gherTags.$inferSelect;
 
