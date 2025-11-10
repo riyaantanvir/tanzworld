@@ -13,7 +13,7 @@ import type { GherTag, GherPartner, GherEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { usePagination } from "@/hooks/usePagination";
 
-type DateFilterType = "custom" | "thisMonth" | "lastMonth" | "thisYear";
+type DateFilterType = "custom" | "thisMonth" | "lastMonth" | "thisYear" | "allTime";
 
 type DashboardStats = {
   totalIncome: number;
@@ -25,9 +25,9 @@ type DashboardStats = {
 
 export default function GherDashboard() {
   const today = new Date();
-  const [dateFilter, setDateFilter] = useState<DateFilterType>("thisYear");
-  const [startDate, setStartDate] = useState(format(startOfYear(today), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(endOfYear(today), "yyyy-MM-dd"));
+  const [dateFilter, setDateFilter] = useState<DateFilterType>("allTime");
+  const [startDate, setStartDate] = useState("1900-01-01");
+  const [endDate, setEndDate] = useState(format(today, "yyyy-MM-dd"));
   const [partnerId, setPartnerId] = useState("");
   const [selectedTagId, setSelectedTagId] = useState("");
 
@@ -44,6 +44,10 @@ export default function GherDashboard() {
     const today = new Date();
 
     switch (filter) {
+      case "allTime":
+        setStartDate("1900-01-01");
+        setEndDate(format(today, "yyyy-MM-dd"));
+        break;
       case "thisMonth":
         setStartDate(format(startOfMonth(today), "yyyy-MM-dd"));
         setEndDate(format(endOfMonth(today), "yyyy-MM-dd"));
@@ -113,9 +117,9 @@ export default function GherDashboard() {
 
   const handleReset = () => {
     const resetDate = new Date();
-    setDateFilter("thisYear");
-    setStartDate(format(startOfYear(resetDate), "yyyy-MM-dd"));
-    setEndDate(format(endOfYear(resetDate), "yyyy-MM-dd"));
+    setDateFilter("allTime");
+    setStartDate("1900-01-01");
+    setEndDate(format(resetDate, "yyyy-MM-dd"));
     setPartnerId("");
     setSelectedTagId("");
   };
@@ -146,6 +150,13 @@ export default function GherDashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={dateFilter === "allTime" ? "default" : "outline"}
+                  onClick={() => handleDateFilterChange("allTime")}
+                  data-testid="button-filter-all-time"
+                >
+                  All Time
+                </Button>
                 <Button
                   variant={dateFilter === "thisMonth" ? "default" : "outline"}
                   onClick={() => handleDateFilterChange("thisMonth")}
