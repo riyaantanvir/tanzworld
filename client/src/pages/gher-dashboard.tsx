@@ -8,6 +8,7 @@ import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } f
 import Sidebar from "@/components/layout/Sidebar";
 import { Progress } from "@/components/ui/progress";
 import type { GherTag, GherPartner, GherEntry } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 type DateFilterType = "custom" | "thisMonth" | "lastMonth" | "thisYear";
 
@@ -20,9 +21,10 @@ type DashboardStats = {
 };
 
 export default function GherDashboard() {
-  const [dateFilter, setDateFilter] = useState<DateFilterType>("custom");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = new Date();
+  const [dateFilter, setDateFilter] = useState<DateFilterType>("thisYear");
+  const [startDate, setStartDate] = useState(format(startOfYear(today), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState(format(endOfYear(today), "yyyy-MM-dd"));
   const [partnerId, setPartnerId] = useState("");
   const [selectedTagId, setSelectedTagId] = useState("");
 
@@ -57,12 +59,12 @@ export default function GherDashboard() {
     }
   };
 
-  const buildQueryString = () => {
-    const params = new URLSearchParams();
-    if (startDate) params.append("startDate", startDate);
-    if (endDate) params.append("endDate", endDate);
-    if (partnerId) params.append("partnerId", partnerId);
-    const query = params.toString();
+  const buildQueryString = (params: Record<string, string>) => {
+    const urlParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) urlParams.append(key, value);
+    });
+    const query = urlParams.toString();
     return query ? `?${query}` : "";
   };
 
@@ -73,12 +75,22 @@ export default function GherDashboard() {
     expenseByTag: [],
     incomeByTag: [],
   } } = useQuery<DashboardStats>({
-    queryKey: ["/api/gher/dashboard-stats" + buildQueryString(), startDate, endDate, partnerId],
+    queryKey: ["/api/gher/dashboard-stats", { startDate, endDate, partnerId }],
+    queryFn: async () => {
+      const queryString = buildQueryString({ startDate, endDate, partnerId });
+      const response = await apiRequest("GET", `/api/gher/dashboard-stats${queryString}`);
+      return response.json();
+    },
     enabled: true,
   });
 
   const { data: allEntries = [] } = useQuery<GherEntry[]>({
-    queryKey: ["/api/gher/entries" + buildQueryString(), startDate, endDate, partnerId],
+    queryKey: ["/api/gher/entries", { startDate, endDate, partnerId }],
+    queryFn: async () => {
+      const queryString = buildQueryString({ startDate, endDate, partnerId });
+      const response = await apiRequest("GET", `/api/gher/entries${queryString}`);
+      return response.json();
+    },
   });
 
   const filteredEntriesByTag = useMemo(() => {
@@ -87,9 +99,10 @@ export default function GherDashboard() {
   }, [allEntries, selectedTagId]);
 
   const handleReset = () => {
-    setDateFilter("custom");
-    setStartDate("");
-    setEndDate("");
+    const resetDate = new Date();
+    setDateFilter("thisYear");
+    setStartDate(format(startOfYear(resetDate), "yyyy-MM-dd"));
+    setEndDate(format(endOfYear(resetDate), "yyyy-MM-dd"));
     setPartnerId("");
     setSelectedTagId("");
   };
