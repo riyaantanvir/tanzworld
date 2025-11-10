@@ -2606,6 +2606,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async deleteAllGherEntries(): Promise<number> {
+    try {
+      const result = await db.delete(gherEntries);
+      const count = result.rowCount ?? 0;
+      console.log(`[DB] Deleted all ${count} gher entries`);
+      return count;
+    } catch (error) {
+      console.error("[DB ERROR] Failed to delete all gher entries:", error);
+      throw new Error(`Failed to delete all gher entries: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async getGherDashboardStats(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<{ 
     totalIncome: number; 
     totalExpense: number; 

@@ -12,6 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Pencil, Trash2, Download, Upload, FileDown } from "lucide-react";
 import { format } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function GherExpense() {
   const { toast } = useToast();
@@ -64,6 +65,19 @@ export default function GherExpense() {
       toast({ title: "Entry deleted successfully" });
     },
     onError: () => toast({ title: "Failed to delete entry", variant: "destructive" }),
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/gher/entries/delete-all");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gher/entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
+      toast({ title: "Success", description: data.message || "All entries deleted successfully" });
+    },
+    onError: () => toast({ title: "Failed to delete all entries", variant: "destructive" }),
   });
 
   const resetForm = () => {
@@ -304,6 +318,34 @@ export default function GherExpense() {
                 className="hidden"
                 data-testid="input-csv-file"
               />
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" data-testid="button-delete-all">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete All
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete all {entries?.length || 0} entry(ies) from the database.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-delete-all">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteAllMutation.mutate()}
+                      disabled={deleteAllMutation.isPending}
+                      data-testid="button-confirm-delete-all"
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleteAllMutation.isPending ? "Deleting..." : "Delete All"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
 

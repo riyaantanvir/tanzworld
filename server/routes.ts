@@ -5579,6 +5579,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/gher/entries/delete-all", authenticate, async (req: Request, res: Response) => {
+    try {
+      const count = await storage.deleteAllGherEntries();
+      res.json({ message: `${count} entry(ies) deleted successfully`, count });
+    } catch (error) {
+      console.error("Delete all gher entries error:", error);
+      res.status(500).json({ message: "Failed to delete all entries" });
+    }
+  });
+
   // Gher Management - Dashboard Stats
   app.get("/api/gher/dashboard-stats", authenticate, async (req: Request, res: Response) => {
     try {

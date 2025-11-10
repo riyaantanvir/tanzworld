@@ -265,6 +265,7 @@ export interface IStorage {
   createGherEntry(entry: any): Promise<any>;
   updateGherEntry(id: string, entry: any): Promise<any | undefined>;
   deleteGherEntry(id: string): Promise<boolean>;
+  deleteAllGherEntries(): Promise<number>;
   getGherDashboardStats(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<{ totalIncome: number; totalExpense: number; netBalance: number }>;
 }
 
