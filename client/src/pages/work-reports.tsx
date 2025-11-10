@@ -219,6 +219,28 @@ export default function WorkReportsPage() {
     },
   });
 
+  // Delete all work reports mutation
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/work-reports/all");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-reports"] });
+      toast({
+        title: "All work reports deleted",
+        description: `Successfully deleted ${data.deletedCount} work report${data.deletedCount !== 1 ? 's' : ''}.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete work reports",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create form
   const createForm = useForm<WorkReportFormData>({
     resolver: zodResolver(workReportFormSchema),
@@ -273,6 +295,11 @@ export default function WorkReportsPage() {
   // Handle delete
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
+  };
+
+  // Handle delete all
+  const handleDeleteAll = () => {
+    deleteAllMutation.mutate();
   };
 
   // CSV Export function
@@ -758,6 +785,41 @@ export default function WorkReportsPage() {
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
+
+              {/* Delete All Button - Admin Only */}
+              {isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      disabled={isLoading || workReports.length === 0}
+                      data-testid="button-delete-all"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete All Work Reports?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all {workReports.length} work report{workReports.length !== 1 ? 's' : ''} from the database. 
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid="button-cancel-delete-all">Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDeleteAll}
+                        className="bg-destructive hover:bg-destructive/90"
+                        data-testid="button-confirm-delete-all"
+                      >
+                        Delete All
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
 
