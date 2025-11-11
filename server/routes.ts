@@ -5538,6 +5538,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gher Management - Entries
   app.get("/api/gher/entries", authenticate, async (req: Request, res: Response) => {
     try {
+      // Parse pagination params
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      
+      // Parse filters
       const filters: any = {};
       if (req.query.startDate) {
         filters.startDate = new Date(req.query.startDate as string);
@@ -5548,9 +5553,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.partnerId) {
         filters.partnerId = req.query.partnerId as string;
       }
+      if (req.query.tagId) {
+        filters.tagId = req.query.tagId as string;
+      }
       
-      const entries = await storage.getGherEntries(filters);
-      res.json(entries);
+      // Get paginated entries
+      const result = await storage.getPaginatedGherEntries({
+        page,
+        pageSize,
+        filters,
+      });
+      
+      res.json(result);
     } catch (error) {
       console.error("Get gher entries error:", error);
       res.status(500).json({ message: "Failed to fetch entries" });
