@@ -32,6 +32,7 @@ Preferred communication style: Simple, everyday language.
 - **Migrations**: Drizzle Kit for schema management.
 - **Schema Fix Notes**: 
   - Nov 11, 2025: Manually added `type` column to `gher_tags` table via SQL (ALTER TABLE) to resolve missing column error. The column was defined in shared/schema.ts but missing from the database. Commands executed: added `type TEXT NOT NULL DEFAULT 'expense'`, added CHECK constraint for ('income', 'expense'), and added UNIQUE constraint on (name, type). This was necessary because `npm run db:push` was stuck on an interactive prompt.
+  - Nov 11, 2025: Manually added `gher_management` column to `user_menu_permissions` table via SQL (ALTER TABLE user_menu_permissions ADD COLUMN IF NOT EXISTS gher_management BOOLEAN DEFAULT false) to resolve user creation errors. The column was defined in shared/schema.ts but missing from the database.
 
 ## Authentication & Authorization
 - **Strategy**: Bearer token authentication stored in localStorage.
