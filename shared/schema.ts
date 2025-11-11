@@ -1084,3 +1084,12 @@ export const insertGherEntrySchema = createInsertSchema(gherEntries).omit({
 });
 export type InsertGherEntry = z.infer<typeof insertGherEntrySchema>;
 export type GherEntry = typeof gherEntries.$inferSelect;
+
+// Pagination types
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
