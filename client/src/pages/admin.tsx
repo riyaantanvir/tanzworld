@@ -165,10 +165,21 @@ function UserManagement() {
       }
     },
     onSuccess: () => {
+      // Invalidate user menu permissions list
       queryClient.invalidateQueries({ queryKey: ["/api/user-menu-permissions"] });
+      
+      // CRITICAL: Invalidate all permission check queries to refresh cached permissions
+      // This ensures the sidebar and route guards immediately reflect the updated permissions
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey as string[];
+          return queryKey[0]?.toString().startsWith('/api/permissions/check/');
+        }
+      });
+      
       toast({
         title: "Permission updated",
-        description: "User menu permission has been updated successfully.",
+        description: "User menu permission has been updated successfully. Changes will take effect immediately.",
       });
     },
     onError: (error: any) => {
@@ -227,6 +238,14 @@ function UserManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user-menu-permissions"] });
       
+      // Invalidate permission checks for immediate reflection
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey as string[];
+          return queryKey[0]?.toString().startsWith('/api/permissions/check/');
+        }
+      });
+      
       toast({
         title: "User created successfully",
         description: `User ${newUser.username} has been created with the selected permissions.`,
@@ -278,6 +297,15 @@ function UserManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user-menu-permissions"] });
+      
+      // Invalidate permission checks to ensure deleted user loses access immediately
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey as string[];
+          return queryKey[0]?.toString().startsWith('/api/permissions/check/');
+        }
+      });
+      
       toast({
         title: "User deleted successfully",
         description: "User has been removed from the system.",
