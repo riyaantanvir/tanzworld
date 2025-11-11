@@ -63,6 +63,7 @@ import {
   type InsertGherPartner,
   type GherEntry,
   type InsertGherEntry,
+  type PaginatedResponse,
   UserRole,
   users,
   sessions,
@@ -102,7 +103,7 @@ import {
   gherEntries
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { eq, and, desc, gte, lte, or, like, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, or, like, sql, count } from "drizzle-orm";
 import { db } from "./db";
 import type { IStorage } from "./storage";
 import { encrypt, decrypt, type EncryptedData } from "./encryption";
@@ -2549,29 +2550,98 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Helper to build filter conditions for gher entries
+  private buildGherEntriesFilterConditions(filters?: { 
+    startDate?: Date; 
+    endDate?: Date; 
+    partnerId?: string;
+    tagId?: string;
+  }) {
+    const conditions = [];
+    if (filters?.startDate) {
+      conditions.push(gte(gherEntries.date, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(gherEntries.date, filters.endDate));
+    }
+    if (filters?.partnerId) {
+      conditions.push(eq(gherEntries.partnerId, filters.partnerId));
+    }
+    if (filters?.tagId) {
+      conditions.push(eq(gherEntries.tagId, filters.tagId));
+    }
+    return conditions;
+  }
+
   async getGherEntries(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<GherEntry[]> {
     try {
+      const conditions = this.buildGherEntriesFilterConditions(filters);
+      
       let query = db.select().from(gherEntries);
-      
-      const conditions = [];
-      if (filters?.startDate) {
-        conditions.push(gte(gherEntries.date, filters.startDate));
-      }
-      if (filters?.endDate) {
-        conditions.push(lte(gherEntries.date, filters.endDate));
-      }
-      if (filters?.partnerId) {
-        conditions.push(eq(gherEntries.partnerId, filters.partnerId));
-      }
-      
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        query = query.where(and(...conditions)) as typeof query;
       }
       
       return await query.orderBy(desc(gherEntries.date));
     } catch (error) {
       console.error("[DB ERROR] Failed to fetch gher entries:", error);
       return [];
+    }
+  }
+
+  async getPaginatedGherEntries(params: {
+    page: number;
+    pageSize: number;
+    filters?: {
+      startDate?: Date;
+      endDate?: Date;
+      partnerId?: string;
+      tagId?: string;
+    };
+  }): Promise<PaginatedResponse<GherEntry>> {
+    try {
+      const { page, pageSize, filters } = params;
+      
+      // Build filter conditions (shared with getGherEntries)
+      const conditions = this.buildGherEntriesFilterConditions(filters);
+      
+      // Get total count
+      let countQueryBuilder = db.select({ count: count() }).from(gherEntries);
+      if (conditions.length > 0) {
+        countQueryBuilder = countQueryBuilder.where(and(...conditions)) as typeof countQueryBuilder;
+      }
+      const countResult = await countQueryBuilder;
+      const total = Number(countResult[0]?.count || 0);
+      
+      // Get paginated data
+      const offset = (page - 1) * pageSize;
+      let dataQuery = db.select().from(gherEntries);
+      if (conditions.length > 0) {
+        dataQuery = dataQuery.where(and(...conditions)) as typeof dataQuery;
+      }
+      const data = await dataQuery
+        .orderBy(desc(gherEntries.date))
+        .limit(pageSize)
+        .offset(offset);
+      
+      const totalPages = Math.ceil(total / pageSize);
+      
+      return {
+        data,
+        total,
+        page,
+        pageSize,
+        totalPages,
+      };
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch paginated gher entries:", error);
+      return {
+        data: [],
+        total: 0,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages: 0,
+      };
     }
   }
 
