@@ -80,6 +80,7 @@ function UserManagement() {
       ownFarming: false,
       newCreated: false,
       farmingAccounts: false,
+      gherManagement: false,
       advantixDashboard: false,
       projects: false,
       payments: false,
@@ -308,6 +309,7 @@ function UserManagement() {
         ownFarming: false,
         newCreated: false,
         farmingAccounts: false,
+        gherManagement: false,
         advantixDashboard: false,
         projects: false,
         payments: false,
@@ -833,6 +835,7 @@ function UserManagement() {
                     { key: 'adAccounts', label: 'Ad Accounts' },
                     { key: 'workReports', label: 'Work Reports' },
                     { key: 'ownFarming', label: 'Own Farming' },
+                    { key: 'gherManagement', label: 'Gher Management' },
                   ].map((permission) => (
                     <div key={permission.key} className="flex items-center justify-between">
                       <Label htmlFor={`create-${permission.key}`} className="text-sm">
