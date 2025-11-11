@@ -262,6 +262,7 @@ export interface IStorage {
 
   // Gher Management - Entries
   getGherEntries(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<any[]>;
+  getPaginatedGherEntries(params: { page: number; pageSize: number; filters?: { startDate?: Date; endDate?: Date; partnerId?: string; tagId?: string } }): Promise<any>;
   getGherEntry(id: string): Promise<any | undefined>;
   createGherEntry(entry: any): Promise<any>;
   updateGherEntry(id: string, entry: any): Promise<any | undefined>;

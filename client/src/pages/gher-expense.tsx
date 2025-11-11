@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Pencil, Trash2, Download, Upload, FileDown } from "lucide-react";
+import { Pencil, Trash2, Download, Upload, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useLocation } from "wouter";
 
 export default function GherExpense() {
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -26,9 +28,44 @@ export default function GherExpense() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: entries = [] } = useQuery<any[]>({
-    queryKey: ["/api/gher/entries"],
+  // Parse URL params for pagination
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const currentPage = parseInt(urlParams.get('page') || '1');
+  const currentPageSize = parseInt(urlParams.get('pageSize') || '10');
+
+  // Update URL when pagination changes
+  const updatePagination = (page: number, pageSize: number) => {
+    const newParams = new URLSearchParams();
+    newParams.set('page', page.toString());
+    newParams.set('pageSize', pageSize.toString());
+    setLocation(`${location.split('?')[0]}?${newParams.toString()}`);
+  };
+
+  // Fetch paginated entries
+  const { data: paginatedData } = useQuery<{
+    data: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>({
+    queryKey: ["/api/gher/entries", { page: currentPage, pageSize: currentPageSize }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: currentPageSize.toString(),
+      });
+      const response = await fetch(`/api/gher/entries?${params}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch entries");
+      return response.json();
+    },
   });
+
+  const entries = paginatedData?.data || [];
+  const totalEntries = paginatedData?.total || 0;
+  const totalPages = paginatedData?.totalPages || 0;
 
   const { data: tags = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/tags"],
@@ -372,7 +409,7 @@ export default function GherExpense() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete all {entries?.length || 0} entry(ies) from the database.
+                      This action cannot be undone. This will permanently delete all {totalEntries} entry(ies) from the database.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -542,6 +579,67 @@ export default function GherExpense() {
                   )}
                 </TableBody>
               </Table>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="pageSize" className="text-sm">Show:</Label>
+                  <Select
+                    value={currentPageSize.toString()}
+                    onValueChange={(value) => updatePagination(1, parseInt(value))}
+                  >
+                    <SelectTrigger id="pageSize" className="w-20" data-testid="select-page-size">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">
+                    entries per page
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {totalEntries === 0 ? 0 : (currentPage - 1) * currentPageSize + 1} to{" "}
+                    {Math.min(currentPage * currentPageSize, totalEntries)} of {totalEntries} entries
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updatePagination(currentPage - 1, currentPageSize)}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+
+                    <div className="flex items-center gap-1 mx-2">
+                      <span className="text-sm">
+                        Page {currentPage} of {totalPages || 1}
+                      </span>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updatePagination(currentPage + 1, currentPageSize)}
+                      disabled={currentPage >= totalPages}
+                      data-testid="button-next-page"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
