@@ -73,10 +73,12 @@ Preferred communication style: Simple, everyday language.
     - Filtered results table displaying tag-specific transactions within the selected date range
     - Partner filters, total income/expense/net balance display, and complete transaction history
     - Defaults to showing all historical data (1900-01-01 to today) to ensure no entries are hidden by date filtering
+    - **API Integration Fix** (Nov 11, 2025): Fixed dashboard crash by extracting `.data` property from paginated `/api/gher/entries` response. Dashboard now fetches all entries with `pageSize=999999` for client-side filtering and pagination via `usePagination` hook.
   - **Expense**: Inline form design (always visible, no dialog) for quick entry creation with fields for date, type (income/expense), amount (BDT), details, and tag. Edit functionality populates the inline form and scrolls to top. **Pagination**: Server-side pagination with URL-based state management (page, pageSize), default 10 items per page with user-controllable options (10/25/50/100). Includes pagination controls (previous/next buttons, page info, page size selector). CSV import/export functionality with example CSV download (format: Date, Details, Type, Amount (BDT), Tag). CSV export fetches all entries regardless of pagination for complete ledger download. Import validates date parsing, amount format, and type field (income/expense only) with detailed error reporting
   - **Partner**: Partner management with name and phone number fields
   - **Settings**: Tag management for categorizing expenses
   - Uses shared Sidebar navigation component for consistent UX across all pages
+  - **Utility Enhancements** (Nov 11, 2025): Enhanced `usePagination` hook with defense-in-depth safety guard (`Array.isArray(data) ? data : []`) to prevent runtime crashes from non-array inputs
 
 # External Dependencies
 
