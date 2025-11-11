@@ -157,9 +157,25 @@ export default function GherExpense() {
     }
   };
 
-  const handleExportCSV = () => {
-    const csvHeaders = "Date,Details,Type,Amount (BDT),Tag\n";
-    const csvRows = entries.map((entry: any) => {
+  const handleExportCSV = async () => {
+    try {
+      // Fetch ALL entries for export (not paginated)
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '999999', // Very large number to get all entries
+      });
+      const response = await fetch(`/api/gher/entries?${params}`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        toast({ title: "Failed to fetch entries for export", variant: "destructive" });
+        return;
+      }
+      const allEntriesData = await response.json();
+      const allEntries = allEntriesData.data || [];
+
+      const csvHeaders = "Date,Details,Type,Amount (BDT),Tag\n";
+      const csvRows = allEntries.map((entry: any) => {
       const date = format(new Date(entry.date), "MM/dd/yyyy");
       const details = (entry.details || "").replace(/,/g, ";");
       const type = entry.type;
@@ -168,13 +184,17 @@ export default function GherExpense() {
       return `${date},${details},${type},${amount},${tag}`;
     }).join("\n");
 
-    const csvContent = csvHeaders + csvRows;
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `gher-entries-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    link.click();
-    toast({ title: "Entries exported successfully" });
+      const csvContent = csvHeaders + csvRows;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `gher-entries-${format(new Date(), "yyyy-MM-dd")}.csv`;
+      link.click();
+      toast({ title: "Entries exported successfully" });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({ title: "Failed to export entries", variant: "destructive" });
+    }
   };
 
   const handleDownloadExample = () => {
