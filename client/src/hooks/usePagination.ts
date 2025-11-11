@@ -9,7 +9,10 @@ interface UsePaginationProps<T> {
 export function usePagination<T>({ data, pageSize = 10, resetDeps = [] }: UsePaginationProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
 
-  const totalPages = data.length === 0 ? 0 : Math.ceil(data.length / pageSize);
+  // Ensure data is always an array to prevent runtime errors
+  const safeData = Array.isArray(data) ? data : [];
+
+  const totalPages = safeData.length === 0 ? 0 : Math.ceil(safeData.length / pageSize);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -27,8 +30,8 @@ export function usePagination<T>({ data, pageSize = 10, resetDeps = [] }: UsePag
     if (totalPages === 0) return [];
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    return data.slice(startIndex, endIndex);
-  }, [data, currentPage, pageSize, totalPages]);
+    return safeData.slice(startIndex, endIndex);
+  }, [safeData, currentPage, pageSize, totalPages]);
 
   const goToPage = (page: number) => {
     if (totalPages === 0) return;
@@ -51,7 +54,7 @@ export function usePagination<T>({ data, pageSize = 10, resetDeps = [] }: UsePag
     currentItems,
     currentPage,
     totalPages,
-    totalItems: data.length,
+    totalItems: safeData.length,
     goToPage,
     nextPage,
     previousPage,

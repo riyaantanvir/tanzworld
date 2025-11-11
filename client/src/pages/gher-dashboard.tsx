@@ -94,9 +94,11 @@ export default function GherDashboard() {
   const { data: allEntries = [] } = useQuery<GherEntry[]>({
     queryKey: ["/api/gher/entries", { startDate, endDate, partnerId }],
     queryFn: async () => {
-      const queryString = buildQueryString({ startDate, endDate, partnerId });
+      const queryString = buildQueryString({ startDate, endDate, partnerId, pageSize: "999999" });
       const response = await apiRequest("GET", `/api/gher/entries${queryString}`);
-      return response.json();
+      const result = await response.json();
+      // Extract data array from paginated response
+      return result.data || [];
     },
   });
 
