@@ -38,6 +38,11 @@ Preferred communication style: Simple, everyday language.
 - **Session Management**: Server-side session validation.
 - **Route Protection**: Client-side guards and API endpoint permission checks (e.g., `requirePagePermission`).
 - **Default Credentials**: Admin user ("Admin"/"2604").
+- **Permission Cache Management**: 
+  - Nov 11, 2025: Fixed permission toggle system to invalidate React Query cache immediately after permission changes
+  - Added predicate-based cache invalidation for all `/api/permissions/check/*` queries in updatePermissionMutation, createUserMutation, and deleteUserMutation
+  - Ensures menu visibility and route access updates instantly without manual reload when admin toggles user permissions
+  - Permission checks now re-fetch automatically after any permission-related mutation (update/create/delete)
 
 ## Component Architecture
 - **Design System**: Comprehensive UI component library with consistent theming.
