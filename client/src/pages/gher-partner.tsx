@@ -53,6 +53,12 @@ export default function GherPartner() {
     enabled: !!selectedPartnerId,
   });
 
+  // Fetch ALL transactions for export (lazy query)
+  const { data: allTransactions = [], refetch: refetchAllTransactions } = useQuery({
+    queryKey: ["/api/gher/capital-transactions"],
+    enabled: false, // Don't fetch automatically, only when needed
+  });
+
   // Partner CRUD mutations
   const createPartnerMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/gher/partners", {
@@ -220,17 +226,15 @@ export default function GherPartner() {
   const handleExportCSV = async () => {
     try {
       // Fetch ALL transactions for export
-      const response = await fetch(`/api/gher/capital-transactions`, {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        toast({ title: "Failed to fetch transactions for export", variant: "destructive" });
+      const result = await refetchAllTransactions();
+      
+      if (!result.data || result.data.length === 0) {
+        toast({ title: "No transactions to export", variant: "destructive" });
         return;
       }
-      const allTransactions = await response.json();
 
       const csvHeaders = "Partner,Date,Type,Amount (BDT),Notes\n";
-      const csvRows = allTransactions.map((txn: any) => {
+      const csvRows = result.data.map((txn: any) => {
         const partnerName = getPartnerName(txn.partnerId).replace(/,/g, ";");
         const date = format(new Date(txn.date), "MM/dd/yyyy");
         const type = txn.type;
@@ -245,7 +249,7 @@ export default function GherPartner() {
       link.href = URL.createObjectURL(blob);
       link.download = `partner-transactions-${format(new Date(), "yyyy-MM-dd")}.csv`;
       link.click();
-      toast({ title: "Transactions exported successfully" });
+      toast({ title: `${result.data.length} transactions exported successfully` });
     } catch (error) {
       console.error("Export error:", error);
       toast({ title: "Failed to export transactions", variant: "destructive" });
