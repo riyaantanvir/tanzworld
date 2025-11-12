@@ -42,23 +42,35 @@ export default function GherExpense() {
   // Pagination state - syncs with URL
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Read URL params on mount and location change
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const page = parseInt(urlParams.get('page') || '1');
     const pageSize = parseInt(urlParams.get('pageSize') || '10');
+    const search = urlParams.get('search') || '';
     setCurrentPage(page);
     setCurrentPageSize(pageSize);
+    setSearchQuery(search);
   }, [location]);
 
-  // Update URL when pagination changes
-  const updatePagination = (page: number, pageSize: number) => {
+  // Update URL when pagination or search changes
+  const updatePagination = (page: number, pageSize: number, search?: string) => {
     const newParams = new URLSearchParams();
     newParams.set('page', page.toString());
     newParams.set('pageSize', pageSize.toString());
+    if (search) {
+      newParams.set('search', search);
+    }
     const basePath = location.split('?')[0];
     setLocation(`${basePath}?${newParams.toString()}`);
+  };
+
+  // Handle search change - reset to page 1
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    updatePagination(1, currentPageSize, value);
   };
 
   // Fetch paginated entries
@@ -69,12 +81,15 @@ export default function GherExpense() {
     pageSize: number;
     totalPages: number;
   }>({
-    queryKey: ["/api/gher/entries", { page: currentPage, pageSize: currentPageSize }],
+    queryKey: ["/api/gher/entries", { page: currentPage, pageSize: currentPageSize, search: searchQuery }],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         pageSize: currentPageSize.toString(),
       });
+      if (searchQuery) {
+        params.set('search', searchQuery);
+      }
       const headers: Record<string, string> = {};
       const token = localStorage.getItem("authToken");
       if (token) {
@@ -725,6 +740,18 @@ export default function GherExpense() {
               <CardTitle>All Entries</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <Label htmlFor="search" className="text-sm">Search by Details</Label>
+                <Input
+                  id="search"
+                  type="text"
+                  placeholder="Search entries by details..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  data-testid="input-search-details"
+                  className="mt-1"
+                />
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -788,7 +815,7 @@ export default function GherExpense() {
                   <Label htmlFor="pageSize" className="text-sm">Show:</Label>
                   <Select
                     value={currentPageSize.toString()}
-                    onValueChange={(value) => updatePagination(1, parseInt(value))}
+                    onValueChange={(value) => updatePagination(1, parseInt(value), searchQuery)}
                   >
                     <SelectTrigger id="pageSize" className="w-20" data-testid="select-page-size">
                       <SelectValue />
@@ -815,7 +842,7 @@ export default function GherExpense() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => updatePagination(currentPage - 1, currentPageSize)}
+                      onClick={() => updatePagination(currentPage - 1, currentPageSize, searchQuery)}
                       disabled={currentPage === 1}
                       data-testid="button-prev-page"
                     >
@@ -832,7 +859,7 @@ export default function GherExpense() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => updatePagination(currentPage + 1, currentPageSize)}
+                      onClick={() => updatePagination(currentPage + 1, currentPageSize, searchQuery)}
                       disabled={currentPage >= totalPages}
                       data-testid="button-next-page"
                     >

@@ -121,7 +121,7 @@ import {
   type InsertGherAuditLog
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { eq, and, desc, gte, lte, lt, or, like, sql, count } from "drizzle-orm";
+import { eq, and, desc, gte, lte, lt, or, like, ilike, sql, count } from "drizzle-orm";
 import { db } from "./db";
 import type { IStorage } from "./storage";
 import { encrypt, decrypt, type EncryptedData } from "./encryption";
@@ -2699,6 +2699,7 @@ export class DatabaseStorage implements IStorage {
     endDate?: Date; 
     partnerId?: string;
     tagId?: string;
+    search?: string;
   }) {
     const conditions = [];
     if (filters?.startDate) {
@@ -2712,6 +2713,11 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.tagId) {
       conditions.push(eq(gherEntries.tagId, filters.tagId));
+    }
+    if (filters?.search) {
+      // Normalize search term: trim whitespace and wrap with wildcards for substring matching
+      const searchTerm = `%${filters.search.trim()}%`;
+      conditions.push(ilike(gherEntries.details, searchTerm));
     }
     return conditions;
   }
@@ -2740,6 +2746,7 @@ export class DatabaseStorage implements IStorage {
       endDate?: Date;
       partnerId?: string;
       tagId?: string;
+      search?: string;
     };
   }): Promise<PaginatedResponse<GherEntry>> {
     try {

@@ -5718,6 +5718,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.tagId) {
         filters.tagId = req.query.tagId as string;
       }
+      if (req.query.search) {
+        filters.search = req.query.search as string;
+      }
       
       // Get paginated entries
       const result = await storage.getPaginatedGherEntries({
