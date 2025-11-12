@@ -31,13 +31,13 @@ export default function GherInvoice() {
     incomeEntries: any[];
     expenseEntries: any[];
   }>({
-    queryKey: ["/api/gher/invoices/preview", selectedMonth],
+    queryKey: [`/api/gher/invoices/preview?month=${selectedMonth}`],
     enabled: false,
   });
 
   // Fetch existing invoices
   const { data: invoices = [] } = useQuery<any[]>({
-    queryKey: ["/api/gher/invoices", selectedMonth],
+    queryKey: [`/api/gher/invoices?month=${selectedMonth}`],
   });
 
   // Generate invoice mutation
@@ -70,10 +70,9 @@ export default function GherInvoice() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <Sidebar>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
           <div>
             <h1 className="text-3xl font-bold" data-testid="heading-invoice">Gher Invoice</h1>
             <p className="text-muted-foreground">Generate monthly financial statements</p>
@@ -213,6 +212,6 @@ export default function GherInvoice() {
           </Card>
         </div>
       </div>
-    </div>
+    </Sidebar>
   );
 }
