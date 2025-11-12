@@ -5848,67 +5848,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const PDFDocument = (await import('pdfkit')).default;
-      const doc = new PDFDocument({ margin: 50 });
+      const doc = new PDFDocument({ 
+        margin: 36,
+        size: 'A4',
+        bufferPages: true
+      });
       
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.pdf"`);
       
       doc.pipe(res);
       
-      // Header
-      doc.fontSize(20).text('Gher Management Invoice', { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNumber}`);
-      doc.text(`Period: ${invoice.yearMonth}`);
-      doc.text(`Generated: ${new Date(invoice.generatedAt).toLocaleDateString()}`);
-      doc.moveDown();
+      const pageWidth = doc.page.width - 72; // Accounting for margins
+      const leftMargin = 36;
+      let currentY = 36;
       
-      // Financial Summary
-      doc.fontSize(16).text('Financial Summary', { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(12);
-      doc.text(`Total Income: ৳${parseFloat(invoice.totalIncome).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`);
-      doc.text(`Total Expense: ৳${parseFloat(invoice.totalExpense).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`);
-      doc.text(`Net Balance: ৳${parseFloat(invoice.netBalance).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`, {
-        continued: false
-      });
-      doc.moveDown();
+      // Helper function to format currency (BDT)
+      const formatBDT = (amount: string | number) => {
+        const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+        return `BDT ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      };
       
-      // Notes
-      if (invoice.notes) {
-        doc.fontSize(14).text('Notes:', { underline: true });
-        doc.moveDown(0.5);
-        doc.fontSize(11).text(invoice.notes);
-        doc.moveDown();
-      }
+      // ===== HEADER SECTION =====
+      doc.fontSize(24).font('Helvetica-Bold').text('GHER MANAGEMENT', leftMargin, currentY, { align: 'center' });
+      currentY += 30;
+      doc.fontSize(12).font('Helvetica').fillColor('#666666')
+        .text('Fish Farming Financial Statement', leftMargin, currentY, { align: 'center' });
+      currentY += 30;
       
-      // Top Income Tags
+      // Divider line
+      doc.strokeColor('#2563eb').lineWidth(2)
+        .moveTo(leftMargin, currentY).lineTo(leftMargin + pageWidth, currentY).stroke();
+      currentY += 25;
+      
+      // ===== INVOICE METADATA =====
+      doc.fillColor('#000000').fontSize(11).font('Helvetica');
+      doc.text(`Invoice Number:`, leftMargin, currentY, { continued: true })
+        .font('Helvetica-Bold').text(` ${invoice.invoiceNumber}`);
+      currentY += 18;
+      
+      doc.font('Helvetica').text(`Billing Period:`, leftMargin, currentY, { continued: true })
+        .font('Helvetica-Bold').text(` ${invoice.yearMonth}`);
+      currentY += 18;
+      
+      doc.font('Helvetica').text(`Generated:`, leftMargin, currentY, { continued: true })
+        .font('Helvetica-Bold').text(` ${new Date(invoice.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`);
+      currentY += 30;
+      
+      // ===== EXECUTIVE SUMMARY BOX =====
+      const summaryBoxY = currentY;
+      doc.strokeColor('#e5e7eb').lineWidth(1)
+        .rect(leftMargin, summaryBoxY, pageWidth, 80).stroke();
+      
+      const colWidth = pageWidth / 3;
+      const totalIncome = parseFloat(invoice.totalIncome);
+      const totalExpense = parseFloat(invoice.totalExpense);
+      const netBalance = parseFloat(invoice.netBalance);
+      
+      // Income column
+      doc.fontSize(10).fillColor('#666666').font('Helvetica')
+        .text('Total Income', leftMargin + 10, summaryBoxY + 15, { width: colWidth - 20, align: 'center' });
+      doc.fontSize(16).fillColor('#059669').font('Helvetica-Bold')
+        .text(formatBDT(totalIncome), leftMargin + 10, summaryBoxY + 35, { width: colWidth - 20, align: 'center' });
+      
+      // Expense column
+      doc.fontSize(10).fillColor('#666666').font('Helvetica')
+        .text('Total Expense', leftMargin + colWidth + 10, summaryBoxY + 15, { width: colWidth - 20, align: 'center' });
+      doc.fontSize(16).fillColor('#dc2626').font('Helvetica-Bold')
+        .text(formatBDT(totalExpense), leftMargin + colWidth + 10, summaryBoxY + 35, { width: colWidth - 20, align: 'center' });
+      
+      // Net Balance column
+      doc.fontSize(10).fillColor('#666666').font('Helvetica')
+        .text('Net Balance', leftMargin + colWidth * 2 + 10, summaryBoxY + 15, { width: colWidth - 20, align: 'center' });
+      doc.fontSize(16).fillColor(netBalance >= 0 ? '#059669' : '#dc2626').font('Helvetica-Bold')
+        .text(formatBDT(netBalance), leftMargin + colWidth * 2 + 10, summaryBoxY + 35, { width: colWidth - 20, align: 'center' });
+      
+      currentY = summaryBoxY + 100;
+      
+      // ===== INCOME BREAKDOWN =====
       if (invoice.topIncomeTags) {
         const incomeTags = JSON.parse(invoice.topIncomeTags);
         if (incomeTags.length > 0) {
-          doc.fontSize(14).text('Top Income Categories:', { underline: true });
-          doc.moveDown(0.5);
-          doc.fontSize(11);
-          incomeTags.forEach((tag: any) => {
-            doc.text(`• ${tag.tagName}: ৳${parseFloat(tag.amount).toLocaleString('en-BD', { minimumFractionDigits: 2 })} (${tag.percentage}%)`);
+          doc.fontSize(14).fillColor('#000000').font('Helvetica-Bold')
+            .text('Income Breakdown', leftMargin, currentY);
+          currentY += 22;
+          
+          // Table header
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
+            .rect(leftMargin, currentY, pageWidth, 20).fill('#2563eb');
+          doc.text('Category', leftMargin + 8, currentY + 6, { width: pageWidth * 0.5 - 8 });
+          doc.text('Amount (BDT)', leftMargin + pageWidth * 0.5, currentY + 6, { width: pageWidth * 0.25, align: 'right' });
+          doc.text('Share', leftMargin + pageWidth * 0.75, currentY + 6, { width: pageWidth * 0.25 - 8, align: 'right' });
+          currentY += 20;
+          
+          // Table rows
+          doc.fillColor('#000000').font('Helvetica');
+          incomeTags.forEach((tag: any, index: number) => {
+            const rowY = currentY;
+            const bgColor = index % 2 === 0 ? '#f9fafb' : '#ffffff';
+            doc.rect(leftMargin, rowY, pageWidth, 18).fill(bgColor);
+            
+            doc.fillColor('#000000').fontSize(9)
+              .text(tag.tagName, leftMargin + 8, rowY + 5, { width: pageWidth * 0.5 - 8 });
+            doc.text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
+            doc.text(`${tag.percentage}%`, leftMargin + pageWidth * 0.75, rowY + 5, { width: pageWidth * 0.25 - 8, align: 'right' });
+            currentY += 18;
           });
-          doc.moveDown();
+          
+          doc.strokeColor('#e5e7eb').lineWidth(1)
+            .rect(leftMargin, currentY - (incomeTags.length * 18) - 20, pageWidth, (incomeTags.length * 18) + 20).stroke();
+          currentY += 20;
         }
       }
       
-      // Top Expense Tags
+      // ===== EXPENSE BREAKDOWN =====
       if (invoice.topExpenseTags) {
         const expenseTags = JSON.parse(invoice.topExpenseTags);
         if (expenseTags.length > 0) {
-          doc.fontSize(14).text('Top Expense Categories:', { underline: true });
-          doc.moveDown(0.5);
-          doc.fontSize(11);
-          expenseTags.forEach((tag: any) => {
-            doc.text(`• ${tag.tagName}: ৳${parseFloat(tag.amount).toLocaleString('en-BD', { minimumFractionDigits: 2 })} (${tag.percentage}%)`);
+          doc.fontSize(14).fillColor('#000000').font('Helvetica-Bold')
+            .text('Expense Breakdown', leftMargin, currentY);
+          currentY += 22;
+          
+          // Table header
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
+            .rect(leftMargin, currentY, pageWidth, 20).fill('#dc2626');
+          doc.text('Category', leftMargin + 8, currentY + 6, { width: pageWidth * 0.5 - 8 });
+          doc.text('Amount (BDT)', leftMargin + pageWidth * 0.5, currentY + 6, { width: pageWidth * 0.25, align: 'right' });
+          doc.text('Share', leftMargin + pageWidth * 0.75, currentY + 6, { width: pageWidth * 0.25 - 8, align: 'right' });
+          currentY += 20;
+          
+          // Table rows
+          doc.fillColor('#000000').font('Helvetica');
+          expenseTags.forEach((tag: any, index: number) => {
+            const rowY = currentY;
+            const bgColor = index % 2 === 0 ? '#fef2f2' : '#ffffff';
+            doc.rect(leftMargin, rowY, pageWidth, 18).fill(bgColor);
+            
+            doc.fillColor('#000000').fontSize(9)
+              .text(tag.tagName, leftMargin + 8, rowY + 5, { width: pageWidth * 0.5 - 8 });
+            doc.text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
+            doc.text(`${tag.percentage}%`, leftMargin + pageWidth * 0.75, rowY + 5, { width: pageWidth * 0.25 - 8, align: 'right' });
+            currentY += 18;
           });
-          doc.moveDown();
+          
+          doc.strokeColor('#e5e7eb').lineWidth(1)
+            .rect(leftMargin, currentY - (expenseTags.length * 18) - 20, pageWidth, (expenseTags.length * 18) + 20).stroke();
+          currentY += 20;
         }
       }
+      
+      // ===== NOTES SECTION =====
+      if (invoice.notes) {
+        doc.fontSize(12).fillColor('#000000').font('Helvetica-Bold')
+          .text('Additional Notes', leftMargin, currentY);
+        currentY += 18;
+        
+        doc.fontSize(9).font('Helvetica').fillColor('#374151')
+          .text(invoice.notes, leftMargin, currentY, { width: pageWidth, align: 'justify' });
+        currentY += 30;
+      }
+      
+      // ===== FOOTER =====
+      const footerY = doc.page.height - 80;
+      doc.fontSize(8).fillColor('#9ca3af').font('Helvetica')
+        .text('All amounts are in Bangladesh Taka (BDT)', leftMargin, footerY, { align: 'center' });
+      doc.text(`Generated on ${new Date().toLocaleString('en-US')} | ${invoice.invoiceNumber}`, leftMargin, footerY + 12, { align: 'center' });
       
       doc.end();
     } catch (error) {
