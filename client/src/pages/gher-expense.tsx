@@ -55,7 +55,13 @@ export default function GherExpense() {
         page: currentPage.toString(),
         pageSize: currentPageSize.toString(),
       });
+      const headers: Record<string, string> = {};
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(`/api/gher/entries?${params}`, {
+        headers,
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch entries");
