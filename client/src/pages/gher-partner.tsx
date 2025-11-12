@@ -36,17 +36,17 @@ export default function GherPartner() {
   });
 
   // Fetch partners list
-  const { data: partners = [] } = useQuery({
+  const { data: partners = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/partners"],
   });
 
   // Fetch partner summary with financial metrics
-  const { data: partnerSummaries = [] } = useQuery({
+  const { data: partnerSummaries = [] } = useQuery<any[]>({
     queryKey: ["/api/gher/partners/summary"],
   });
 
   // Fetch capital transactions for selected partner
-  const { data: transactions = [] } = useQuery({
+  const { data: transactions = [] } = useQuery<any[]>({
     queryKey: selectedPartnerId 
       ? [`/api/gher/capital-transactions?partnerId=${selectedPartnerId}`]
       : ["/api/gher/capital-transactions"],
@@ -54,7 +54,7 @@ export default function GherPartner() {
   });
 
   // Fetch ALL transactions for export (lazy query)
-  const { data: allTransactions = [], refetch: refetchAllTransactions } = useQuery({
+  const { data: allTransactions = [], refetch: refetchAllTransactions } = useQuery<any[]>({
     queryKey: ["/api/gher/capital-transactions"],
     enabled: false, // Don't fetch automatically, only when needed
   });
