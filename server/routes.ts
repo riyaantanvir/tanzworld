@@ -5847,7 +5847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
-      const PDFDocument = require('pdfkit');
+      const PDFDocument = (await import('pdfkit')).default;
       const doc = new PDFDocument({ margin: 50 });
       
       res.setHeader('Content-Type', 'application/pdf');

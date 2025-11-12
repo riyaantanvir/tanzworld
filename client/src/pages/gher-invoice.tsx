@@ -74,7 +74,7 @@ export default function GherInvoice() {
 
   const handleDownload = async (invoiceId: string, format: 'pdf' | 'csv') => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`/api/gher/invoices/${invoiceId}/${format}`, {
         headers: {
           'Authorization': `Bearer ${token}`
