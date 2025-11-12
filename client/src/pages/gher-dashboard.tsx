@@ -9,7 +9,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import type { GherTag, GherPartner, GherEntry } from "@shared/schema";
+import type { GherTag, GherEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { usePagination } from "@/hooks/usePagination";
 
@@ -28,12 +28,7 @@ export default function GherDashboard() {
   const [dateFilter, setDateFilter] = useState<DateFilterType>("allTime");
   const [startDate, setStartDate] = useState("1900-01-01");
   const [endDate, setEndDate] = useState(format(today, "yyyy-MM-dd"));
-  const [partnerId, setPartnerId] = useState("");
   const [selectedTagId, setSelectedTagId] = useState("");
-
-  const { data: partners = [] } = useQuery<GherPartner[]>({
-    queryKey: ["/api/gher/partners"],
-  });
 
   const { data: tags = [] } = useQuery<GherTag[]>({
     queryKey: ["/api/gher/tags"],
@@ -92,9 +87,9 @@ export default function GherDashboard() {
     expenseByTag: [],
     incomeByTag: [],
   } } = useQuery<DashboardStats>({
-    queryKey: ["/api/gher/dashboard-stats", { startDate, endDate, partnerId }],
+    queryKey: ["/api/gher/dashboard-stats", { startDate, endDate }],
     queryFn: async () => {
-      const queryString = buildQueryString({ startDate, endDate, partnerId });
+      const queryString = buildQueryString({ startDate, endDate });
       const response = await apiRequest("GET", `/api/gher/dashboard-stats${queryString}`);
       return response.json();
     },
@@ -102,9 +97,9 @@ export default function GherDashboard() {
   });
 
   const { data: allEntries = [] } = useQuery<GherEntry[]>({
-    queryKey: ["/api/gher/entries", { startDate, endDate, partnerId }],
+    queryKey: ["/api/gher/entries", { startDate, endDate }],
     queryFn: async () => {
-      const queryString = buildQueryString({ startDate, endDate, partnerId, pageSize: "999999" });
+      const queryString = buildQueryString({ startDate, endDate, pageSize: "999999" });
       const response = await apiRequest("GET", `/api/gher/entries${queryString}`);
       const result = await response.json();
       // Extract data array from paginated response
@@ -120,7 +115,7 @@ export default function GherDashboard() {
   const allEntriesPagination = usePagination({ 
     data: allEntries, 
     pageSize: 10,
-    resetDeps: [startDate, endDate, partnerId]
+    resetDeps: [startDate, endDate]
   });
 
   const handleTagClick = (tagId: string | null) => {
@@ -132,7 +127,6 @@ export default function GherDashboard() {
     setDateFilter("allTime");
     setStartDate("1900-01-01");
     setEndDate(format(resetDate, "yyyy-MM-dd"));
-    setPartnerId("");
     setSelectedTagId("");
   };
 
@@ -140,12 +134,6 @@ export default function GherDashboard() {
     if (!tagId) return "-";
     const tag = tags.find(t => t.id === tagId);
     return tag?.name || "-";
-  };
-
-  const getPartnerName = (partId: string | null) => {
-    if (!partId) return "-";
-    const partner = partners.find(p => p.id === partId);
-    return partner?.name || "-";
   };
 
   return (
@@ -225,22 +213,6 @@ export default function GherDashboard() {
                     className="h-9 px-3 rounded-md border"
                     data-testid="input-end-date"
                   />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Partner</label>
-                  <Select value={partnerId || "all"} onValueChange={(value) => setPartnerId(value === "all" ? "" : value)}>
-                    <SelectTrigger className="w-48" data-testid="select-partner">
-                      <SelectValue placeholder="All Partners" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Partners</SelectItem>
-                      {partners.map(partner => (
-                        <SelectItem key={partner.id} value={partner.id}>
-                          {partner.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium">Filter by Tag</label>
@@ -424,7 +396,6 @@ export default function GherDashboard() {
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Partner</TableHead>
                         <TableHead>Details</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -444,7 +415,6 @@ export default function GherDashboard() {
                             </span>
                           </TableCell>
                           <TableCell>৳{parseFloat(entry.amount).toLocaleString()}</TableCell>
-                          <TableCell>{getPartnerName(entry.partnerId)}</TableCell>
                           <TableCell className="max-w-xs truncate">{entry.details || "-"}</TableCell>
                         </TableRow>
                       ))}
