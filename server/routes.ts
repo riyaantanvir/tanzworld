@@ -5847,15 +5847,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
-      // TODO: Implement PDF generation using PDFKit
-      res.status(501).json({ message: "PDF generation not yet implemented" });
+      const PDFDocument = require('pdfkit');
+      const doc = new PDFDocument({ margin: 50 });
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.pdf"`);
+      
+      doc.pipe(res);
+      
+      // Header
+      doc.fontSize(20).text('Gher Management Invoice', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNumber}`);
+      doc.text(`Period: ${invoice.yearMonth}`);
+      doc.text(`Generated: ${new Date(invoice.generatedAt).toLocaleDateString()}`);
+      doc.moveDown();
+      
+      // Financial Summary
+      doc.fontSize(16).text('Financial Summary', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(12);
+      doc.text(`Total Income: ৳${parseFloat(invoice.totalIncome).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`);
+      doc.text(`Total Expense: ৳${parseFloat(invoice.totalExpense).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`);
+      doc.text(`Net Balance: ৳${parseFloat(invoice.netBalance).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`, {
+        continued: false
+      });
+      doc.moveDown();
+      
+      // Notes
+      if (invoice.notes) {
+        doc.fontSize(14).text('Notes:', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(11).text(invoice.notes);
+        doc.moveDown();
+      }
+      
+      // Top Income Tags
+      if (invoice.topIncomeTags) {
+        const incomeTags = JSON.parse(invoice.topIncomeTags);
+        if (incomeTags.length > 0) {
+          doc.fontSize(14).text('Top Income Categories:', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(11);
+          incomeTags.forEach((tag: any) => {
+            doc.text(`• ${tag.tagName}: ৳${parseFloat(tag.amount).toLocaleString('en-BD', { minimumFractionDigits: 2 })} (${tag.percentage}%)`);
+          });
+          doc.moveDown();
+        }
+      }
+      
+      // Top Expense Tags
+      if (invoice.topExpenseTags) {
+        const expenseTags = JSON.parse(invoice.topExpenseTags);
+        if (expenseTags.length > 0) {
+          doc.fontSize(14).text('Top Expense Categories:', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(11);
+          expenseTags.forEach((tag: any) => {
+            doc.text(`• ${tag.tagName}: ৳${parseFloat(tag.amount).toLocaleString('en-BD', { minimumFractionDigits: 2 })} (${tag.percentage}%)`);
+          });
+          doc.moveDown();
+        }
+      }
+      
+      doc.end();
     } catch (error) {
       console.error("Download invoice PDF error:", error);
       res.status(500).json({ message: "Failed to download PDF" });
     }
   });
 
-  // Download invoice data as CSV (stub for now - will implement CSV generation)
+  // Download invoice data as CSV
   app.get("/api/gher/invoices/:id/csv", authenticate, requirePagePermission('gher_invoices', 'view'), async (req: Request, res: Response) => {
     try {
       const invoice = await storage.getInvoice(req.params.id);
@@ -5863,8 +5925,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
-      // TODO: Implement CSV export using fast-csv
-      res.status(501).json({ message: "CSV export not yet implemented" });
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.csv"`);
+      
+      const csvRows: string[] = [];
+      
+      csvRows.push('Invoice Summary');
+      csvRows.push(`Invoice Number,${invoice.invoiceNumber}`);
+      csvRows.push(`Period,${invoice.yearMonth}`);
+      csvRows.push(`Generated,${new Date(invoice.generatedAt).toLocaleDateString()}`);
+      csvRows.push('');
+      csvRows.push('Financial Summary');
+      csvRows.push('Category,Amount (BDT)');
+      csvRows.push(`Total Income,${parseFloat(invoice.totalIncome).toFixed(2)}`);
+      csvRows.push(`Total Expense,${parseFloat(invoice.totalExpense).toFixed(2)}`);
+      csvRows.push(`Net Balance,${parseFloat(invoice.netBalance).toFixed(2)}`);
+      csvRows.push('');
+      
+      if (invoice.notes) {
+        csvRows.push(`Notes,${invoice.notes.replace(/,/g, ';')}`);
+        csvRows.push('');
+      }
+      
+      if (invoice.topIncomeTags) {
+        const incomeTags = JSON.parse(invoice.topIncomeTags);
+        if (incomeTags.length > 0) {
+          csvRows.push('Top Income Categories');
+          csvRows.push('Category,Amount (BDT),Percentage');
+          incomeTags.forEach((tag: any) => {
+            csvRows.push(`${tag.tagName},${parseFloat(tag.amount).toFixed(2)},${tag.percentage}%`);
+          });
+          csvRows.push('');
+        }
+      }
+      
+      if (invoice.topExpenseTags) {
+        const expenseTags = JSON.parse(invoice.topExpenseTags);
+        if (expenseTags.length > 0) {
+          csvRows.push('Top Expense Categories');
+          csvRows.push('Category,Amount (BDT),Percentage');
+          expenseTags.forEach((tag: any) => {
+            csvRows.push(`${tag.tagName},${parseFloat(tag.amount).toFixed(2)},${tag.percentage}%`);
+          });
+        }
+      }
+      
+      res.send(csvRows.join('\n'));
     } catch (error) {
       console.error("Download invoice CSV error:", error);
       res.status(500).json({ message: "Failed to download CSV" });

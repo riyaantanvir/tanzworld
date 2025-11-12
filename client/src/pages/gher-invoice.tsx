@@ -72,6 +72,33 @@ export default function GherInvoice() {
     return `৳${num.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const handleDownload = async (invoiceId: string, format: 'pdf' | 'csv') => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/gher/invoices/${invoiceId}/${format}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      toast({ title: `Failed to download ${format.toUpperCase()}`, variant: "destructive" });
+    }
+  };
+
   return (
     <Sidebar>
       <div className="flex-1 overflow-auto">
@@ -198,11 +225,21 @@ export default function GherInvoice() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" disabled data-testid={`button-pdf-${invoice.id}`}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDownload(invoice.id, 'pdf')}
+                          data-testid={`button-pdf-${invoice.id}`}
+                        >
                           <Download className="w-4 h-4 mr-1" />
                           PDF
                         </Button>
-                        <Button variant="outline" size="sm" disabled data-testid={`button-csv-${invoice.id}`}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDownload(invoice.id, 'csv')}
+                          data-testid={`button-csv-${invoice.id}`}
+                        >
                           <Download className="w-4 h-4 mr-1" />
                           CSV
                         </Button>
