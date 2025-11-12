@@ -1108,6 +1108,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getUserAccessibleMenus(userId: string): Promise<{ pageKey: string; route: string; name: string }[]> {
+    // Get user
+    const user = await this.getUser(userId);
+    if (!user) return [];
+
+    // Define all available menu items with their routes
+    const allMenus = [
+      { pageKey: 'dashboard', route: '/', name: 'Dashboard' },
+      { pageKey: 'campaigns', route: '/campaigns', name: 'Campaigns' },
+      { pageKey: 'clients', route: '/clients', name: 'Clients' },
+      { pageKey: 'ad_accounts', route: '/ad-accounts', name: 'Ad Accounts' },
+      { pageKey: 'work_reports', route: '/work-reports', name: 'Work Reports' },
+      { pageKey: 'fb_ad_management', route: '/fb-ad-management', name: 'FB Ad Management' },
+      { pageKey: 'finance', route: '/finance/dashboard', name: 'Finance' },
+      { pageKey: 'gher_management', route: '/gher/dashboard', name: 'Gher Management' },
+      { pageKey: 'admin', route: '/admin', name: 'Admin Panel' },
+    ];
+
+    // Filter to only accessible menus
+    const accessibleMenus = [];
+    for (const menu of allMenus) {
+      const hasAccess = await this.checkUserPagePermission(userId, menu.pageKey, 'view');
+      if (hasAccess) {
+        accessibleMenus.push(menu);
+      }
+    }
+
+    return accessibleMenus;
+  }
+
   // Finance Project methods
   async getFinanceProjects(): Promise<FinanceProject[]> {
     return await db.select().from(financeProjects).orderBy(desc(financeProjects.createdAt));

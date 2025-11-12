@@ -125,6 +125,7 @@ export interface IStorage {
   updateRolePermission(id: string, permission: Partial<InsertRolePermission>): Promise<RolePermission | undefined>;
   deleteRolePermission(id: string): Promise<boolean>;
   checkUserPagePermission(userId: string, pageKey: string, action: 'view' | 'edit' | 'delete'): Promise<boolean>;
+  getUserAccessibleMenus(userId: string): Promise<{ pageKey: string; route: string; name: string }[]>;
 
   // Finance Project methods
   getFinanceProjects(): Promise<FinanceProject[]>;
