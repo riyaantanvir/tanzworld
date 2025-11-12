@@ -13,7 +13,7 @@ import type { GherTag, GherEntry } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { usePagination } from "@/hooks/usePagination";
 
-type DateFilterType = "custom" | "thisMonth" | "lastMonth" | "thisYear" | "allTime";
+type DateFilterType = "allTime" | "today" | "yesterday" | "thisMonth" | "lastMonth" | "custom";
 
 type DashboardStats = {
   totalIncome: number;
@@ -47,11 +47,21 @@ export default function GherDashboard() {
   const handleDateFilterChange = (filter: DateFilterType) => {
     setDateFilter(filter);
     const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
     switch (filter) {
       case "allTime":
         setStartDate("1900-01-01");
         setEndDate(format(today, "yyyy-MM-dd"));
+        break;
+      case "today":
+        setStartDate(format(today, "yyyy-MM-dd"));
+        setEndDate(format(today, "yyyy-MM-dd"));
+        break;
+      case "yesterday":
+        setStartDate(format(yesterday, "yyyy-MM-dd"));
+        setEndDate(format(yesterday, "yyyy-MM-dd"));
         break;
       case "thisMonth":
         setStartDate(format(startOfMonth(today), "yyyy-MM-dd"));
@@ -61,10 +71,6 @@ export default function GherDashboard() {
         const lastMonth = subMonths(today, 1);
         setStartDate(format(startOfMonth(lastMonth), "yyyy-MM-dd"));
         setEndDate(format(endOfMonth(lastMonth), "yyyy-MM-dd"));
-        break;
-      case "thisYear":
-        setStartDate(format(startOfYear(today), "yyyy-MM-dd"));
-        setEndDate(format(endOfYear(today), "yyyy-MM-dd"));
         break;
       case "custom":
         break;
@@ -149,71 +155,55 @@ export default function GherDashboard() {
               <CardTitle>Filters</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={dateFilter === "allTime" ? "default" : "outline"}
-                  onClick={() => handleDateFilterChange("allTime")}
-                  data-testid="button-filter-all-time"
-                >
-                  All Time
-                </Button>
-                <Button
-                  variant={dateFilter === "thisMonth" ? "default" : "outline"}
-                  onClick={() => handleDateFilterChange("thisMonth")}
-                  data-testid="button-filter-this-month"
-                >
-                  This Month
-                </Button>
-                <Button
-                  variant={dateFilter === "lastMonth" ? "default" : "outline"}
-                  onClick={() => handleDateFilterChange("lastMonth")}
-                  data-testid="button-filter-last-month"
-                >
-                  Last Month
-                </Button>
-                <Button
-                  variant={dateFilter === "thisYear" ? "default" : "outline"}
-                  onClick={() => handleDateFilterChange("thisYear")}
-                  data-testid="button-filter-this-year"
-                >
-                  This Year
-                </Button>
-                <Button
-                  variant={dateFilter === "custom" ? "default" : "outline"}
-                  onClick={() => handleDateFilterChange("custom")}
-                  data-testid="button-filter-custom"
-                >
-                  Custom
-                </Button>
-              </div>
-
               <div className="flex flex-wrap gap-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Start Date</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
-                      setDateFilter("custom");
-                    }}
-                    className="h-9 px-3 rounded-md border"
-                    data-testid="input-start-date"
-                  />
+                  <label className="text-sm font-medium">Date Range</label>
+                  <Select value={dateFilter} onValueChange={(value: DateFilterType) => handleDateFilterChange(value)}>
+                    <SelectTrigger className="w-56" data-testid="select-date-filter">
+                      <SelectValue placeholder="Select date range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="allTime">All Time</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="yesterday">Yesterday</SelectItem>
+                      <SelectItem value="thisMonth">This Month</SelectItem>
+                      <SelectItem value="lastMonth">Last Month</SelectItem>
+                      <SelectItem value="custom">Custom Date Range</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">End Date</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
-                      setDateFilter("custom");
-                    }}
-                    className="h-9 px-3 rounded-md border"
-                    data-testid="input-end-date"
-                  />
-                </div>
+
+                {dateFilter === "custom" && (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-medium">Start Date</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => {
+                          setStartDate(e.target.value);
+                          setDateFilter("custom");
+                        }}
+                        className="h-9 px-3 rounded-md border"
+                        data-testid="input-start-date"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-medium">End Date</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => {
+                          setEndDate(e.target.value);
+                          setDateFilter("custom");
+                        }}
+                        className="h-9 px-3 rounded-md border"
+                        data-testid="input-end-date"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium">Filter by Tag</label>
                   <Select value={selectedTagId || "all"} onValueChange={(value) => setSelectedTagId(value === "all" ? "" : value)}>
