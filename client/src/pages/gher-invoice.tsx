@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { FileText, Download, Eye } from "lucide-react";
+import { FileText, Download, Eye, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function GherInvoice() {
   const { toast } = useToast();
@@ -53,6 +54,16 @@ export default function GherInvoice() {
       setNotes("");
     },
     onError: () => toast({ title: "Failed to generate invoice", variant: "destructive" }),
+  });
+
+  // Delete invoice mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/gher/invoices/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gher/invoices"] });
+      toast({ title: "Invoice deleted successfully" });
+    },
+    onError: () => toast({ title: "Failed to delete invoice", variant: "destructive" }),
   });
 
   const handlePreview = async () => {
@@ -243,6 +254,35 @@ export default function GherInvoice() {
                           <Download className="w-4 h-4 mr-1" />
                           CSV
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              data-testid={`button-delete-${invoice.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete invoice {invoice.invoiceNumber}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteMutation.mutate(invoice.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   ))}

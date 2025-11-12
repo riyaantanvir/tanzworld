@@ -6081,6 +6081,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete invoice
+  app.delete("/api/gher/invoices/:id", authenticate, requirePagePermission('gher_invoices', 'edit'), async (req: Request, res: Response) => {
+    try {
+      await storage.deleteInvoice(req.params.id);
+      res.json({ message: "Invoice deleted successfully" });
+    } catch (error) {
+      console.error("Delete invoice error:", error);
+      res.status(500).json({ message: "Failed to delete invoice" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
