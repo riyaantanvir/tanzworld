@@ -2975,7 +2975,7 @@ export class DatabaseStorage implements IStorage {
       const allPartners = await this.getGherPartners();
       
       // Fetch capital transactions within month range
-      const capitalTransactions = await this.db
+      const capitalTransactions = await db
         .select()
         .from(gherCapitalTransactions)
         .where(
@@ -3101,7 +3101,7 @@ export class DatabaseStorage implements IStorage {
 
   async getNextInvoiceSequence(yearMonth: string): Promise<number> {
     try {
-      return await this.db.transaction(async (tx) => {
+      return await db.transaction(async (tx) => {
         // Use SELECT FOR UPDATE to lock the row
         const existing = await tx
           .select()
@@ -3139,7 +3139,7 @@ export class DatabaseStorage implements IStorage {
 
   async createInvoice(data: any): Promise<any> {
     try {
-      const result = await this.db.insert(gherInvoices).values(data).returning();
+      const result = await db.insert(gherInvoices).values(data).returning();
       return result[0];
     } catch (error) {
       console.error("[DB ERROR] Failed to create invoice:", error);
@@ -3149,7 +3149,7 @@ export class DatabaseStorage implements IStorage {
 
   async getInvoice(id: string): Promise<any> {
     try {
-      const result = await this.db
+      const result = await db
         .select()
         .from(gherInvoices)
         .where(eq(gherInvoices.id, id));
@@ -3163,13 +3163,13 @@ export class DatabaseStorage implements IStorage {
   async listInvoices(month?: string): Promise<any[]> {
     try {
       if (month) {
-        return await this.db
+        return await db
           .select()
           .from(gherInvoices)
           .where(eq(gherInvoices.yearMonth, month))
           .orderBy(desc(gherInvoices.generatedAt));
       } else {
-        return await this.db
+        return await db
           .select()
           .from(gherInvoices)
           .orderBy(desc(gherInvoices.generatedAt));
