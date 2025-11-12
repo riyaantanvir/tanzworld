@@ -35,10 +35,13 @@ export default function GherInvoice() {
     enabled: false,
   });
 
-  // Fetch existing invoices
-  const { data: invoices = [] } = useQuery<any[]>({
-    queryKey: [`/api/gher/invoices?month=${selectedMonth}`],
+  // Fetch existing invoices (fetch all invoices, filter on client side)
+  const { data: allInvoices = [] } = useQuery<any[]>({
+    queryKey: ["/api/gher/invoices"],
   });
+  
+  // Filter invoices by selected month on client side
+  const invoices = allInvoices.filter(invoice => invoice.yearMonth === selectedMonth);
 
   // Generate invoice mutation
   const generateMutation = useMutation({
