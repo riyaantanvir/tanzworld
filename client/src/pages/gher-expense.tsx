@@ -39,17 +39,24 @@ export default function GherExpense() {
     errors: [] as string[],
   });
 
-  // Parse URL params for pagination
-  const urlParams = new URLSearchParams(window.location.search);
-  const currentPage = parseInt(urlParams.get('page') || '1');
-  const currentPageSize = parseInt(urlParams.get('pageSize') || '10');
+  // Pagination state - syncs with URL
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPageSize, setCurrentPageSize] = useState(10);
+
+  // Read URL params on mount and location change
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const page = parseInt(urlParams.get('page') || '1');
+    const pageSize = parseInt(urlParams.get('pageSize') || '10');
+    setCurrentPage(page);
+    setCurrentPageSize(pageSize);
+  }, [location]);
 
   // Update URL when pagination changes
   const updatePagination = (page: number, pageSize: number) => {
     const newParams = new URLSearchParams();
     newParams.set('page', page.toString());
     newParams.set('pageSize', pageSize.toString());
-    // Strip existing query params from location before appending new ones
     const basePath = location.split('?')[0];
     setLocation(`${basePath}?${newParams.toString()}`);
   };
