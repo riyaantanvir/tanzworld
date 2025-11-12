@@ -25,6 +25,7 @@ import {
   insertTelegramConfigSchema,
   insertTelegramChatIdSchema,
   insertFarmingAccountSchema,
+  insertGherPartnerSchema,
   type Campaign,
   type Client,
   type User,
@@ -5501,10 +5502,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/gher/partners", authenticate, async (req: Request, res: Response) => {
     try {
-      const partner = await storage.createGherPartner(req.body);
+      const validatedData = insertGherPartnerSchema.parse(req.body);
+      const partner = await storage.createGherPartner(validatedData);
       res.status(201).json(partner);
     } catch (error) {
       console.error("Create gher partner error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
       res.status(500).json({ message: "Failed to create partner" });
     }
   });
