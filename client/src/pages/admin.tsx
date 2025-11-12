@@ -2382,23 +2382,67 @@ function AuditLog() {
   
   // Format description to show meaningful information
   const formatDescription = (log: any) => {
-    if (!log.description && !log.changeSummary) return 'No description';
-    
-    // If we have a description, use it
-    if (log.description) {
-      // Make it more readable
-      const action = log.actionType.replace('_', ' ');
-      const entity = log.entityType;
-      return `${action.charAt(0).toUpperCase() + action.slice(1)}: ${log.description}`;
+    // Parse changeSummary if it's a string
+    let parsedChangeSummary = null;
+    if (log.changeSummary) {
+      try {
+        parsedChangeSummary = typeof log.changeSummary === 'string' 
+          ? JSON.parse(log.changeSummary) 
+          : log.changeSummary;
+      } catch (e) {
+        console.error('Failed to parse changeSummary:', e);
+      }
     }
     
-    // Otherwise, generate from change summary
-    if (log.changeSummary && Object.keys(log.changeSummary).length > 0) {
-      const changes = Object.entries(log.changeSummary).slice(0, 2).map(([key, _]) => key).join(', ');
-      return `Modified ${changes}${Object.keys(log.changeSummary).length > 2 ? `, +${Object.keys(log.changeSummary).length - 2} more` : ''}`;
+    // Build description based on action type
+    if (log.actionType === 'deleted') {
+      // For deletes, show what was deleted from the 'before' data
+      if (parsedChangeSummary?.before) {
+        const data = parsedChangeSummary.before;
+        if (log.entityType === 'entry') {
+          const amount = data.amount || 'Unknown';
+          const tag = data.tagId || data.tag || 'No tag';
+          const type = data.type || 'expense';
+          return `Deleted ${type}: ৳${amount} (${tag})`;
+        } else if (log.entityType === 'partner') {
+          return `Deleted partner: ${data.name || 'Unknown'} (${data.phone || 'No phone'})`;
+        } else if (log.entityType === 'tag') {
+          return `Deleted tag: ${data.name || 'Unknown'} (${data.type || 'expense'})`;
+        }
+      }
+      return log.entityLabel || 'Deleted item (no details)';
     }
     
-    return 'No details available';
+    if (log.actionType === 'created') {
+      // For creates, show what was created from the 'after' data
+      if (parsedChangeSummary?.after) {
+        const data = parsedChangeSummary.after;
+        if (log.entityType === 'entry') {
+          const amount = data.amount || 'Unknown';
+          const tag = data.tagId || data.tag || 'No tag';
+          const type = data.type || 'expense';
+          return `Created ${type}: ৳${amount} (${tag})`;
+        } else if (log.entityType === 'partner') {
+          return `Created partner: ${data.name || 'Unknown'} (${data.phone || 'No phone'})`;
+        } else if (log.entityType === 'tag') {
+          return `Created tag: ${data.name || 'Unknown'} (${data.type || 'expense'})`;
+        }
+      }
+      return log.entityLabel || 'Created item';
+    }
+    
+    if (log.actionType === 'updated') {
+      // For updates, show what changed
+      if (parsedChangeSummary?.changes && Object.keys(parsedChangeSummary.changes).length > 0) {
+        const changedFields = Object.keys(parsedChangeSummary.changes).slice(0, 3).join(', ');
+        const moreCount = Math.max(0, Object.keys(parsedChangeSummary.changes).length - 3);
+        return `Modified ${changedFields}${moreCount > 0 ? ` +${moreCount} more` : ''}`;
+      }
+      return log.entityLabel || 'Updated item';
+    }
+    
+    // For invoices and other types
+    return log.entityLabel || 'No details available';
   };
 
   return (
