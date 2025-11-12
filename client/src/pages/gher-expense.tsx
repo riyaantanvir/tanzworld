@@ -696,7 +696,7 @@ export default function GherExpense() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Select Tag</SelectItem>
-                      {tags.map((tag: any) => (
+                      {tags.filter((tag: any) => tag.type === formData.type).map((tag: any) => (
                         <SelectItem key={tag.id} value={tag.id}>
                           {tag.name}
                         </SelectItem>
