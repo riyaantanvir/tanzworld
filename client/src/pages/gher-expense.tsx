@@ -523,20 +523,32 @@ export default function GherExpense() {
             </div>
           </div>
 
-          {(isImporting || importProgress.errors.length > 0) && (
+          {(isImporting || importProgress.total > 0) && (
             <Card data-testid="card-import-progress">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {isImporting ? (
-                    <>
-                      <Upload className="w-5 h-5 animate-pulse" />
-                      Importing CSV...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      Import Complete
-                    </>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {isImporting ? (
+                      <>
+                        <Upload className="w-5 h-5 animate-pulse" />
+                        Importing CSV...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        Import Complete
+                      </>
+                    )}
+                  </div>
+                  {!isImporting && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setImportProgress({ current: 0, total: 0, successCount: 0, errorCount: 0, errors: [] })}
+                      data-testid="button-dismiss-import-result"
+                    >
+                      Dismiss
+                    </Button>
                   )}
                 </CardTitle>
               </CardHeader>
