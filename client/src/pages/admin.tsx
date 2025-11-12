@@ -2352,8 +2352,8 @@ function AuditLog() {
     },
   });
 
-  const logs = auditData?.logs || [];
-  const totalPages = auditData?.pagination?.totalPages || 1;
+  const logs = auditData?.data || [];
+  const totalPages = auditData?.totalPages || 1;
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
