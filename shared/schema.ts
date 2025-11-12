@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer, decimal, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, decimal, unique, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1233,6 +1233,34 @@ export const insertGherInvoiceSchema = createInsertSchema(gherInvoices).omit({
 });
 export type InsertGherInvoice = z.infer<typeof insertGherInvoiceSchema>;
 export type GherInvoice = typeof gherInvoices.$inferSelect;
+
+// Gher Audit Logs - Track all Gher Management operations
+export const gherAuditLogs = pgTable("gher_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  username: text("username").notNull(), // Cached for display even if user deleted
+  actionType: text("action_type").notNull(), // "created", "updated", "deleted", "generated_invoice", etc.
+  entityType: text("entity_type").notNull(), // "entry", "partner", "tag", "invoice", "capital_transaction"
+  entityId: text("entity_id"), // ID of the affected entity
+  entityLabel: text("entity_label"), // Human-readable summary (e.g., "Invoice GHER-INV-202411-001")
+  changeSummary: text("change_summary"), // JSON: before/after diff for updates
+  metadata: text("metadata"), // JSON: additional context (invoice number, tag name, etc.)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  createdAtIdx: index("gher_audit_logs_created_at_idx").on(table.createdAt.desc()),
+  userCreatedAtIdx: index("gher_audit_logs_user_created_at_idx").on(table.userId, table.createdAt),
+  entityTypeCreatedAtIdx: index("gher_audit_logs_entity_type_idx").on(table.entityType, table.createdAt),
+}));
+
+export const insertGherAuditLogSchema = createInsertSchema(gherAuditLogs).omit({ 
+  id: true,
+  createdAt: true
+}).extend({
+  actionType: z.enum(["created", "updated", "deleted", "generated_invoice", "deleted_invoice"]),
+  entityType: z.enum(["entry", "partner", "tag", "invoice", "capital_transaction"]),
+});
+export type InsertGherAuditLog = z.infer<typeof insertGherAuditLogSchema>;
+export type GherAuditLog = typeof gherAuditLogs.$inferSelect;
 
 // Pagination types
 export interface PaginatedResponse<T> {

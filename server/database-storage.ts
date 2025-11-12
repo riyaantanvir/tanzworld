@@ -115,7 +115,10 @@ import {
   type GherInvoice,
   type InsertGherInvoice,
   type GherInvoiceSequence,
-  type InsertGherInvoiceSequence
+  type InsertGherInvoiceSequence,
+  gherAuditLogs,
+  type GherAuditLog,
+  type InsertGherAuditLog
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { eq, and, desc, gte, lte, lt, or, like, sql, count } from "drizzle-orm";
@@ -3188,6 +3191,87 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("[DB ERROR] Failed to list invoices:", error);
       return [];
+    }
+  }
+
+  async logGherAuditEntry(event: InsertGherAuditLog): Promise<void> {
+    try {
+      await db.insert(gherAuditLogs).values(event);
+    } catch (error) {
+      console.error("[DB ERROR] Failed to log audit entry:", error);
+      throw error;
+    }
+  }
+
+  async listGherAuditLogs(filters?: {
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+    entityType?: string;
+    actionType?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedResponse<GherAuditLog>> {
+    try {
+      const page = filters?.page || 1;
+      const pageSize = filters?.pageSize || 50;
+      const offset = (page - 1) * pageSize;
+
+      const conditions = [];
+      
+      if (filters?.startDate) {
+        conditions.push(gte(gherAuditLogs.createdAt, new Date(filters.startDate)));
+      }
+      if (filters?.endDate) {
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        conditions.push(lte(gherAuditLogs.createdAt, endDate));
+      }
+      if (filters?.userId) {
+        conditions.push(eq(gherAuditLogs.userId, filters.userId));
+      }
+      if (filters?.entityType) {
+        conditions.push(eq(gherAuditLogs.entityType, filters.entityType));
+      }
+      if (filters?.actionType) {
+        conditions.push(eq(gherAuditLogs.actionType, filters.actionType));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [data, countResult] = await Promise.all([
+        db
+          .select()
+          .from(gherAuditLogs)
+          .where(whereClause)
+          .orderBy(desc(gherAuditLogs.createdAt))
+          .limit(pageSize)
+          .offset(offset),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(gherAuditLogs)
+          .where(whereClause)
+      ]);
+
+      const total = countResult[0]?.count || 0;
+      const totalPages = Math.ceil(total / pageSize);
+
+      return {
+        data,
+        total,
+        page,
+        pageSize,
+        totalPages
+      };
+    } catch (error) {
+      console.error("[DB ERROR] Failed to list audit logs:", error);
+      return {
+        data: [],
+        total: 0,
+        page: filters?.page || 1,
+        pageSize: filters?.pageSize || 50,
+        totalPages: 0
+      };
     }
   }
 }

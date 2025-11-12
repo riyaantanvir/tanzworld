@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { logGherAudit } from "./gher-audit-helper";
 import { db } from "./db";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
@@ -5504,6 +5505,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertGherPartnerSchema.parse(req.body);
       const partner = await storage.createGherPartner(validatedData);
+      
+      await logGherAudit(
+        { storage, userId: req.user!.id, username: req.user!.username },
+        "created",
+        "partner",
+        partner.id,
+        `Partner: ${partner.name} (${partner.phoneNumber || 'N/A'})`,
+        { after: partner }
+      );
+      
       res.status(201).json(partner);
     } catch (error) {
       console.error("Create gher partner error:", error);
@@ -5516,10 +5527,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/gher/partners/:id", authenticate, async (req: Request, res: Response) => {
     try {
+      const before = await storage.getGherPartner(req.params.id);
       const partner = await storage.updateGherPartner(req.params.id, req.body);
       if (!partner) {
         return res.status(404).json({ message: "Partner not found" });
       }
+      
+      await logGherAudit(
+        { storage, userId: req.user!.id, username: req.user!.username },
+        "updated",
+        "partner",
+        partner.id,
+        `Partner: ${partner.name}`,
+        { before, after: partner }
+      );
+      
       res.json(partner);
     } catch (error) {
       console.error("Update gher partner error:", error);
@@ -5529,10 +5551,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/gher/partners/:id", authenticate, async (req: Request, res: Response) => {
     try {
+      const partner = await storage.getGherPartner(req.params.id);
       const success = await storage.deleteGherPartner(req.params.id);
       if (!success) {
         return res.status(404).json({ message: "Partner not found" });
       }
+      
+      if (partner) {
+        await logGherAudit(
+          { storage, userId: req.user!.id, username: req.user!.username },
+          "deleted",
+          "partner",
+          partner.id,
+          `Partner: ${partner.name} (${partner.phoneNumber || 'N/A'})`,
+          { before: partner }
+        );
+      }
+      
       res.status(204).send();
     } catch (error) {
       console.error("Delete gher partner error:", error);
@@ -5671,6 +5706,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date: new Date(req.body.date),
       };
       const entry = await storage.createGherEntry(entryData);
+      
+      await logGherAudit(
+        { storage, userId: req.user!.id, username: req.user!.username },
+        "created",
+        "entry",
+        entry.id,
+        `${entry.type} entry: ${entry.details || 'N/A'} (BDT ${entry.amount})`,
+        { after: entry }
+      );
+      
       res.status(201).json(entry);
     } catch (error) {
       console.error("Create gher entry error:", error);
@@ -5684,6 +5729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/gher/entries/:id", authenticate, async (req: Request, res: Response) => {
     try {
+      const before = await storage.getGherEntry(req.params.id);
       const updateData = {
         ...req.body,
         ...(req.body.date && { date: new Date(req.body.date) }),
@@ -5692,6 +5738,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!entry) {
         return res.status(404).json({ message: "Entry not found" });
       }
+      
+      await logGherAudit(
+        { storage, userId: req.user!.id, username: req.user!.username },
+        "updated",
+        "entry",
+        entry.id,
+        `${entry.type} entry: ${entry.details || 'N/A'}`,
+        { before, after: entry }
+      );
+      
       res.json(entry);
     } catch (error) {
       console.error("Update gher entry error:", error);
@@ -5705,10 +5761,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/gher/entries/:id", authenticate, async (req: Request, res: Response) => {
     try {
+      const entry = await storage.getGherEntry(req.params.id);
       const success = await storage.deleteGherEntry(req.params.id);
       if (!success) {
         return res.status(404).json({ message: "Entry not found" });
       }
+      
+      if (entry) {
+        await logGherAudit(
+          { storage, userId: req.user!.id, username: req.user!.username },
+          "deleted",
+          "entry",
+          entry.id,
+          `${entry.type} entry: ${entry.details || 'N/A'} (BDT ${entry.amount})`,
+          { before: entry }
+        );
+      }
+      
       res.status(204).send();
     } catch (error) {
       console.error("Delete gher entry error:", error);
@@ -5802,6 +5871,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const invoice = await storage.createInvoice(invoiceData);
+      
+      await logGherAudit(
+        { storage, userId: req.user!.id, username: req.user!.username },
+        "generated_invoice",
+        "invoice",
+        invoice.id,
+        `Invoice: ${invoice.invoiceNumber}`,
+        { after: invoice, metadata: { yearMonth: invoice.yearMonth, totalIncome: invoice.totalIncome, totalExpense: invoice.totalExpense } }
+      );
+      
       res.status(201).json(invoice);
     } catch (error) {
       console.error("Create invoice error:", error);
@@ -6084,11 +6163,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete invoice
   app.delete("/api/gher/invoices/:id", authenticate, requirePagePermission('gher_invoices', 'edit'), async (req: Request, res: Response) => {
     try {
+      const invoice = await storage.getInvoice(req.params.id);
       await storage.deleteInvoice(req.params.id);
+      
+      if (invoice) {
+        await logGherAudit(
+          { storage, userId: req.user!.id, username: req.user!.username },
+          "deleted_invoice",
+          "invoice",
+          invoice.id,
+          `Invoice: ${invoice.invoiceNumber}`,
+          { before: invoice, metadata: { yearMonth: invoice.yearMonth } }
+        );
+      }
+      
       res.json({ message: "Invoice deleted successfully" });
     } catch (error) {
       console.error("Delete invoice error:", error);
       res.status(500).json({ message: "Failed to delete invoice" });
+    }
+  });
+
+  // Gher Audit Logs
+  app.get("/api/gher/audit-logs", authenticate, requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const filters = {
+        startDate: req.query.startDate as string | undefined,
+        endDate: req.query.endDate as string | undefined,
+        userId: req.query.userId as string | undefined,
+        entityType: req.query.entityType as string | undefined,
+        actionType: req.query.actionType as string | undefined,
+        page: req.query.page ? parseInt(req.query.page as string) : undefined,
+        pageSize: req.query.pageSize ? parseInt(req.query.pageSize as string) : undefined,
+      };
+
+      const result = await storage.listGherAuditLogs(filters);
+      res.json(result);
+    } catch (error) {
+      console.error("Get audit logs error:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

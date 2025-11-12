@@ -42,6 +42,9 @@ import {
   type FarmingAccount,
   type InsertFarmingAccount,
   type FarmingAccountWithSecrets,
+  type GherAuditLog,
+  type InsertGherAuditLog,
+  type PaginatedResponse,
   UserRole
 } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -300,7 +303,20 @@ export interface IStorage {
   getNextInvoiceSequence(yearMonth: string): Promise<number>;
   createInvoice(data: any): Promise<any>;
   getInvoice(id: string): Promise<any>;
+  deleteInvoice(id: string): Promise<void>;
   listInvoices(month?: string): Promise<any[]>;
+  
+  // Audit Log methods
+  logGherAuditEntry(event: InsertGherAuditLog): Promise<void>;
+  listGherAuditLogs(filters?: {
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+    entityType?: string;
+    actionType?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedResponse<GherAuditLog>>;
 }
 
 export class MemStorage implements IStorage {
