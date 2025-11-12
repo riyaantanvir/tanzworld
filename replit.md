@@ -26,12 +26,13 @@ Preferred communication style: Simple, everyday language.
 - **Third-Party Integrations**: Facebook Graph API for ad account and page synchronization.
 
 ## Database Schema
-- **Core Entities**: Users, Sessions, Clients, Campaigns, Work Reports, Salaries, Ad Accounts, Facebook Pages, Email Settings, SMS Settings, Client Email Preferences (disabled), Farming Accounts, Gher Entries, Gher Tags, Gher Partners.
+- **Core Entities**: Users, Sessions, Clients, Campaigns, Work Reports, Salaries, Ad Accounts, Facebook Pages, Email Settings, SMS Settings, Client Email Preferences (disabled), Farming Accounts, Gher Entries, Gher Tags, Gher Partners, **Gher Capital Transactions** (Nov 12, 2025), **Gher Settlements** (Nov 12, 2025), **Gher Settlement Items** (Nov 12, 2025).
 - **User Menu Permissions**: Granular permission controls for menu visibility including dashboard, campaigns, clients, ad accounts, work reports, Own Farming (parent), New Created (sub-menu), Farming Accounts (sub-menu), finance, and admin panel access.
 - **Validation**: Zod schemas for runtime type validation.
 - **Migrations**: Drizzle Kit for schema management.
 - **Schema Fix Notes**: 
   - Nov 11, 2025: Manually added `type` column to `gher_tags` table via SQL (ALTER TABLE) to resolve missing column error. The column was defined in shared/schema.ts but missing from the database. Commands executed: added `type TEXT NOT NULL DEFAULT 'expense'`, added CHECK constraint for ('income', 'expense'), and added UNIQUE constraint on (name, type). This was necessary because `npm run db:push` was stuck on an interactive prompt.
+  - Nov 12, 2025: Added partner management schema with `share_percentage` field to gher_partners, created `gher_capital_transactions` table for tracking partner contributions/withdrawals/returns, and settlement tracking tables (`gher_settlements`, `gher_settlement_items`) with CHECK constraints ensuring capital balances remain non-negative.
 
 ## Authentication & Authorization
 - **Strategy**: Bearer token authentication stored in localStorage.

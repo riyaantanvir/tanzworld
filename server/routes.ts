@@ -5535,6 +5535,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gher Management - Capital Transactions
+  app.get("/api/gher/capital-transactions", authenticate, async (req: Request, res: Response) => {
+    try {
+      const partnerId = req.query.partnerId as string | undefined;
+      const transactions = await storage.getGherCapitalTransactions(partnerId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Get capital transactions error:", error);
+      res.status(500).json({ message: "Failed to get capital transactions" });
+    }
+  });
+
+  app.post("/api/gher/capital-transactions", authenticate, async (req: Request, res: Response) => {
+    try {
+      const transaction = await storage.createGherCapitalTransaction(req.body);
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Create capital transaction error:", error);
+      res.status(500).json({ message: "Failed to create capital transaction" });
+    }
+  });
+
+  app.patch("/api/gher/capital-transactions/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const transaction = await storage.updateGherCapitalTransaction(req.params.id, req.body);
+      if (!transaction) {
+        return res.status(404).json({ message: "Capital transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      console.error("Update capital transaction error:", error);
+      res.status(500).json({ message: "Failed to update capital transaction" });
+    }
+  });
+
+  app.delete("/api/gher/capital-transactions/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deleteGherCapitalTransaction(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Capital transaction not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete capital transaction error:", error);
+      res.status(500).json({ message: "Failed to delete capital transaction" });
+    }
+  });
+
+  // Gher Management - Partner Summary
+  app.get("/api/gher/partners/summary", authenticate, async (req: Request, res: Response) => {
+    try {
+      const partners = await storage.getGherPartners();
+      
+      const summaries = await Promise.all(
+        partners.map(async (partner: any) => {
+          const capitalSummary = await storage.getPartnerCapitalSummary(partner.id);
+          const allocatedProfitLoss = await storage.getPartnerAllocatedProfitLoss(partner.id);
+          const currentBalance = capitalSummary.outstanding + allocatedProfitLoss - capitalSummary.withdrawn;
+          
+          return {
+            partnerId: partner.id,
+            partnerName: partner.name,
+            sharePercentage: parseFloat(partner.sharePercentage),
+            invested: capitalSummary.invested,
+            returned: capitalSummary.returned,
+            withdrawn: capitalSummary.withdrawn,
+            outstanding: capitalSummary.outstanding,
+            allocatedProfitLoss,
+            currentBalance
+          };
+        })
+      );
+      
+      res.json(summaries);
+    } catch (error) {
+      console.error("Get partner summary error:", error);
+      res.status(500).json({ message: "Failed to get partner summary" });
+    }
+  });
+
   // Gher Management - Entries
   app.get("/api/gher/entries", authenticate, async (req: Request, res: Response) => {
     try {

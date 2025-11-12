@@ -260,6 +260,15 @@ export interface IStorage {
   updateGherPartner(id: string, partner: any): Promise<any | undefined>;
   deleteGherPartner(id: string): Promise<boolean>;
 
+  // Gher Management - Capital Transactions
+  getGherCapitalTransactions(partnerId?: string): Promise<any[]>;
+  getGherCapitalTransaction(id: string): Promise<any | undefined>;
+  createGherCapitalTransaction(transaction: any): Promise<any>;
+  updateGherCapitalTransaction(id: string, transaction: any): Promise<any | undefined>;
+  deleteGherCapitalTransaction(id: string): Promise<boolean>;
+  getPartnerCapitalSummary(partnerId: string): Promise<{ invested: number; returned: number; withdrawn: number; outstanding: number }>;
+  getPartnerAllocatedProfitLoss(partnerId: string): Promise<number>;
+
   // Gher Management - Entries
   getGherEntries(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<any[]>;
   getPaginatedGherEntries(params: { page: number; pageSize: number; filters?: { startDate?: Date; endDate?: Date; partnerId?: string; tagId?: string } }): Promise<any>;

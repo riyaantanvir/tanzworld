@@ -2583,6 +2583,16 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getGherCapitalTransaction(id: string): Promise<GherCapitalTransaction | undefined> {
+    try {
+      const result = await db.select().from(gherCapitalTransactions).where(eq(gherCapitalTransactions.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get capital transaction:", error);
+      return undefined;
+    }
+  }
+
   async createGherCapitalTransaction(transaction: InsertGherCapitalTransaction): Promise<GherCapitalTransaction> {
     try {
       const transactionData: any = {
@@ -2624,6 +2634,53 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("[DB ERROR] Failed to delete capital transaction:", error);
       return false;
+    }
+  }
+
+  async getPartnerCapitalSummary(partnerId: string): Promise<{
+    invested: number;
+    returned: number;
+    withdrawn: number;
+    outstanding: number;
+  }> {
+    try {
+      const result = await db
+        .select({
+          type: gherCapitalTransactions.type,
+          total: sql<string>`COALESCE(SUM(${gherCapitalTransactions.amount}::numeric), 0)`.as('total')
+        })
+        .from(gherCapitalTransactions)
+        .where(eq(gherCapitalTransactions.partnerId, partnerId))
+        .groupBy(gherCapitalTransactions.type);
+
+      const sums = result.reduce((acc, row) => {
+        acc[row.type] = parseFloat(row.total);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const invested = sums.contribution || 0;
+      const returned = sums.return || 0;
+      const withdrawn = sums.withdrawal || 0;
+      const outstanding = invested - returned;
+
+      return { invested, returned, withdrawn, outstanding };
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get partner capital summary:", error);
+      return { invested: 0, returned: 0, withdrawn: 0, outstanding: 0 };
+    }
+  }
+
+  async getPartnerAllocatedProfitLoss(partnerId: string): Promise<number> {
+    try {
+      const items = await db
+        .select()
+        .from(gherSettlementItems)
+        .where(eq(gherSettlementItems.partnerId, partnerId));
+
+      return items.reduce((sum, item) => sum + parseFloat(item.profitLoss), 0);
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get partner allocated profit/loss:", error);
+      return 0;
     }
   }
 
