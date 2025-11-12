@@ -32,6 +32,7 @@ Preferred communication style: Simple, everyday language.
 - **Migrations**: Drizzle Kit for schema management.
 - **Schema Fix Notes**: 
   - Nov 11, 2025: Manually added `type` column to `gher_tags` table via SQL (ALTER TABLE) to resolve missing column error. The column was defined in shared/schema.ts but missing from the database. Commands executed: added `type TEXT NOT NULL DEFAULT 'expense'`, added CHECK constraint for ('income', 'expense'), and added UNIQUE constraint on (name, type). This was necessary because `npm run db:push` was stuck on an interactive prompt.
+  - Nov 11, 2025: Manually added `gher_management` column to `user_menu_permissions` table via SQL (ALTER TABLE user_menu_permissions ADD COLUMN IF NOT EXISTS gher_management BOOLEAN DEFAULT false) to resolve user creation errors. The column was defined in shared/schema.ts but missing from the database.
   - Nov 12, 2025: Added partner management schema with `share_percentage` field to gher_partners, created `gher_capital_transactions` table for tracking partner contributions/withdrawals/returns, and settlement tracking tables (`gher_settlements`, `gher_settlement_items`) with CHECK constraints ensuring capital balances remain non-negative.
 
 ## Authentication & Authorization
