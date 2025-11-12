@@ -1048,7 +1048,22 @@ export const gherPartners = pgTable("gher_partners", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
+  sharePercentage: decimal("share_percentage", { precision: 5, scale: 2 }).notNull().default("33.33"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const gherCapitalTransactions = pgTable("gher_capital_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").references(() => gherPartners.id, { onDelete: "cascade" }).notNull(),
+  date: timestamp("date").notNull(),
+  type: text("type").notNull(), // "contribution", "withdrawal", "return"
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => {
+  return {
+    typeCheck: sql`CHECK (${table.type} IN ('contribution', 'withdrawal', 'return'))`
+  }
 });
 
 export const gherEntries = pgTable("gher_entries", {
@@ -1073,9 +1088,21 @@ export const insertGherTagSchema = createInsertSchema(gherTags).omit({ id: true,
 export type InsertGherTag = z.infer<typeof insertGherTagSchema>;
 export type GherTag = typeof gherTags.$inferSelect;
 
-export const insertGherPartnerSchema = createInsertSchema(gherPartners).omit({ id: true, createdAt: true });
+export const insertGherPartnerSchema = createInsertSchema(gherPartners).omit({ id: true, createdAt: true }).extend({
+  sharePercentage: z.coerce.number().min(0).max(100).optional(),
+});
 export type InsertGherPartner = z.infer<typeof insertGherPartnerSchema>;
 export type GherPartner = typeof gherPartners.$inferSelect;
+
+export const insertGherCapitalTransactionSchema = createInsertSchema(gherCapitalTransactions).omit({ 
+  id: true, 
+  createdAt: true 
+}).extend({
+  type: z.enum(["contribution", "withdrawal", "return"]),
+  amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
+});
+export type InsertGherCapitalTransaction = z.infer<typeof insertGherCapitalTransactionSchema>;
+export type GherCapitalTransaction = typeof gherCapitalTransactions.$inferSelect;
 
 export const insertGherEntrySchema = createInsertSchema(gherEntries).omit({ 
   id: true, 

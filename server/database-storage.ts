@@ -61,6 +61,8 @@ import {
   type InsertGherTag,
   type GherPartner,
   type InsertGherPartner,
+  type GherCapitalTransaction,
+  type InsertGherCapitalTransaction,
   type GherEntry,
   type InsertGherEntry,
   type PaginatedResponse,
@@ -100,6 +102,7 @@ import {
   farmingAccounts,
   gherTags,
   gherPartners,
+  gherCapitalTransactions,
   gherEntries
 } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -2522,7 +2525,12 @@ export class DatabaseStorage implements IStorage {
 
   async createGherPartner(partner: InsertGherPartner): Promise<GherPartner> {
     try {
-      const result = await db.insert(gherPartners).values(partner).returning();
+      const partnerData: any = {
+        name: partner.name,
+        phone: partner.phone,
+        ...(partner.sharePercentage !== undefined && { sharePercentage: String(partner.sharePercentage) })
+      };
+      const result = await db.insert(gherPartners).values(partnerData).returning();
       return result[0];
     } catch (error) {
       console.error("[DB ERROR] Failed to create gher partner:", error);
@@ -2532,7 +2540,12 @@ export class DatabaseStorage implements IStorage {
 
   async updateGherPartner(id: string, partner: Partial<InsertGherPartner>): Promise<GherPartner | undefined> {
     try {
-      const result = await db.update(gherPartners).set(partner).where(eq(gherPartners.id, id)).returning();
+      const partnerData: any = {
+        ...(partner.name && { name: partner.name }),
+        ...(partner.phone && { phone: partner.phone }),
+        ...(partner.sharePercentage !== undefined && { sharePercentage: String(partner.sharePercentage) })
+      };
+      const result = await db.update(gherPartners).set(partnerData).where(eq(gherPartners.id, id)).returning();
       return result[0];
     } catch (error) {
       console.error("[DB ERROR] Failed to update gher partner:", error);
@@ -2546,6 +2559,64 @@ export class DatabaseStorage implements IStorage {
       return true;
     } catch (error) {
       console.error("[DB ERROR] Failed to delete gher partner:", error);
+      return false;
+    }
+  }
+
+  // Gher Capital Transactions
+  async getGherCapitalTransactions(partnerId?: string): Promise<GherCapitalTransaction[]> {
+    try {
+      let query = db.select().from(gherCapitalTransactions);
+      if (partnerId) {
+        query = query.where(eq(gherCapitalTransactions.partnerId, partnerId)) as typeof query;
+      }
+      return await query.orderBy(desc(gherCapitalTransactions.date));
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch capital transactions:", error);
+      return [];
+    }
+  }
+
+  async createGherCapitalTransaction(transaction: InsertGherCapitalTransaction): Promise<GherCapitalTransaction> {
+    try {
+      const transactionData: any = {
+        partnerId: transaction.partnerId,
+        date: transaction.date,
+        type: transaction.type,
+        amount: String(transaction.amount),
+        ...(transaction.note && { note: transaction.note })
+      };
+      const result = await db.insert(gherCapitalTransactions).values(transactionData).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to create capital transaction:", error);
+      throw error;
+    }
+  }
+
+  async updateGherCapitalTransaction(id: string, transaction: Partial<InsertGherCapitalTransaction>): Promise<GherCapitalTransaction | undefined> {
+    try {
+      const transactionData: any = {
+        ...(transaction.partnerId && { partnerId: transaction.partnerId }),
+        ...(transaction.date && { date: transaction.date }),
+        ...(transaction.type && { type: transaction.type }),
+        ...(transaction.amount !== undefined && { amount: String(transaction.amount) }),
+        ...(transaction.note !== undefined && { note: transaction.note })
+      };
+      const result = await db.update(gherCapitalTransactions).set(transactionData).where(eq(gherCapitalTransactions.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to update capital transaction:", error);
+      return undefined;
+    }
+  }
+
+  async deleteGherCapitalTransaction(id: string): Promise<boolean> {
+    try {
+      await db.delete(gherCapitalTransactions).where(eq(gherCapitalTransactions.id, id));
+      return true;
+    } catch (error) {
+      console.error("[DB ERROR] Failed to delete capital transaction:", error);
       return false;
     }
   }
