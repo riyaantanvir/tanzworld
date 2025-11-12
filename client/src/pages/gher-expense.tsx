@@ -40,7 +40,7 @@ export default function GherExpense() {
   });
 
   // Parse URL params for pagination
-  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const urlParams = new URLSearchParams(window.location.search);
   const currentPage = parseInt(urlParams.get('page') || '1');
   const currentPageSize = parseInt(urlParams.get('pageSize') || '10');
 
@@ -49,7 +49,9 @@ export default function GherExpense() {
     const newParams = new URLSearchParams();
     newParams.set('page', page.toString());
     newParams.set('pageSize', pageSize.toString());
-    setLocation(`${location.split('?')[0]}?${newParams.toString()}`);
+    // Strip existing query params from location before appending new ones
+    const basePath = location.split('?')[0];
+    setLocation(`${basePath}?${newParams.toString()}`);
   };
 
   // Fetch paginated entries
