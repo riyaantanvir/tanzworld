@@ -2337,7 +2337,14 @@ function AuditLog() {
   const { data: auditData, isLoading } = useQuery({
     queryKey: ['/api/gher/audit-logs', filters, page],
     queryFn: async () => {
+      const headers: Record<string, string> = {};
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const res = await fetch(`/api/gher/audit-logs?${queryParams}`, {
+        headers,
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to fetch audit logs');
