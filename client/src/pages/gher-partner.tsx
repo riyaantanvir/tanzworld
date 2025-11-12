@@ -497,7 +497,6 @@ Tanvir,11/14/2025,return,10000,Capital repayment`;
                     <TableHead className="w-10"></TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead className="text-right">Share %</TableHead>
                     <TableHead className="text-right">Invested</TableHead>
                     <TableHead className="text-right">Outstanding</TableHead>
                     <TableHead className="text-right">Withdrawn</TableHead>
@@ -508,7 +507,7 @@ Tanvir,11/14/2025,return,10000,Capital repayment`;
                 <TableBody>
                   {partnerSummaries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">
                         No partners found. Add your first partner to get started.
                       </TableCell>
                     </TableRow>
@@ -537,9 +536,6 @@ Tanvir,11/14/2025,return,10000,Capital repayment`;
                             <TableCell className="font-medium">{summary.partnerName}</TableCell>
                             <TableCell>
                               {partners.find((p: any) => p.id === summary.partnerId)?.phone || "N/A"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Badge variant="secondary">{summary.sharePercentage}%</Badge>
                             </TableCell>
                             <TableCell className="text-right">৳{formatCurrency(summary.invested)}</TableCell>
                             <TableCell className="text-right">৳{formatCurrency(summary.outstanding)}</TableCell>
@@ -584,7 +580,7 @@ Tanvir,11/14/2025,return,10000,Capital repayment`;
                           {/* Expandable Transaction Details */}
                           {isExpanded && (
                             <TableRow>
-                              <TableCell colSpan={9} className="bg-muted/50 p-0">
+                              <TableCell colSpan={8} className="bg-muted/50 p-0">
                                 <div className="p-4">
                                   <h4 className="font-medium mb-3">Capital Transactions</h4>
                                   {partnerTransactions.length === 0 ? (
