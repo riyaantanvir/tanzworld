@@ -5549,7 +5549,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/gher/capital-transactions", authenticate, async (req: Request, res: Response) => {
     try {
-      const transaction = await storage.createGherCapitalTransaction(req.body);
+      const data = {
+        ...req.body,
+        date: new Date(req.body.date),
+      };
+      const transaction = await storage.createGherCapitalTransaction(data);
       res.status(201).json(transaction);
     } catch (error) {
       console.error("Create capital transaction error:", error);
@@ -5559,7 +5563,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/gher/capital-transactions/:id", authenticate, async (req: Request, res: Response) => {
     try {
-      const transaction = await storage.updateGherCapitalTransaction(req.params.id, req.body);
+      const data = {
+        ...req.body,
+        ...(req.body.date && { date: new Date(req.body.date) }),
+      };
+      const transaction = await storage.updateGherCapitalTransaction(req.params.id, data);
       if (!transaction) {
         return res.status(404).json({ message: "Capital transaction not found" });
       }
