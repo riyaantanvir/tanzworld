@@ -51,8 +51,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Edit3, Trash2, Users, Shield, RefreshCw, Settings, Lock, DollarSign, Tag as TagIcon, Plus, Database, Download, Upload, FileText, AlertCircle, Send, MessageSquare, Bot, Mail, Bell } from "lucide-react";
+import { UserPlus, Edit3, Trash2, Users, Shield, RefreshCw, Settings, Lock, DollarSign, Tag as TagIcon, Plus, Database, Download, Upload, FileText, AlertCircle, Send, MessageSquare, Bot, Mail, Bell, ClipboardList, ChevronDown, ChevronRight } from "lucide-react";
 import type { User, InsertUserWithRole, Page, RolePermission, Tag, InsertTag, UserMenuPermission, InsertUserMenuPermission, Employee, InsertEmployee, TelegramConfig, InsertTelegramConfig, TelegramChatId, InsertTelegramChatId } from "@shared/schema";
+import { format } from "date-fns";
 
 interface UserFormData {
   name: string;
@@ -2304,6 +2305,281 @@ function FinanceAccessControl() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function AuditLog() {
+  const { toast } = useToast();
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  
+  const [filters, setFilters] = useState({
+    startDate: '',
+    endDate: '',
+    userId: '',
+    entityType: '',
+    actionType: '',
+  });
+
+  const { data: users } = useQuery<User[]>({ queryKey: ['/api/users'] });
+
+  const queryParams = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+    ...(filters.startDate && { startDate: filters.startDate }),
+    ...(filters.endDate && { endDate: filters.endDate }),
+    ...(filters.userId && { userId: filters.userId }),
+    ...(filters.entityType && { entityType: filters.entityType }),
+    ...(filters.actionType && { actionType: filters.actionType }),
+  });
+
+  const { data: auditData, isLoading } = useQuery({
+    queryKey: ['/api/gher/audit-logs', filters, page],
+    queryFn: async () => {
+      const res = await fetch(`/api/gher/audit-logs?${queryParams}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to fetch audit logs');
+      return res.json();
+    },
+  });
+
+  const logs = auditData?.logs || [];
+  const totalPages = auditData?.pagination?.totalPages || 1;
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPage(1);
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      startDate: '',
+      endDate: '',
+      userId: '',
+      entityType: '',
+      actionType: '',
+    });
+    setPage(1);
+  };
+
+  const entityTypes = ['entry', 'partner', 'tag', 'invoice'];
+  const actionTypes = ['created', 'updated', 'deleted', 'generated_invoice', 'deleted_invoice'];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ClipboardList className="w-5 h-5" />
+          Gher Management Audit Log
+        </CardTitle>
+        <CardDescription>
+          Complete history of all Gher Management operations including entries, partners, tags, and invoices
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4 bg-muted/30 rounded-md">
+          <div>
+            <Label htmlFor="filter-start-date" className="text-xs">Start Date</Label>
+            <Input
+              id="filter-start-date"
+              data-testid="input-audit-start-date"
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => handleFilterChange('startDate', e.target.value)}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="filter-end-date" className="text-xs">End Date</Label>
+            <Input
+              id="filter-end-date"
+              data-testid="input-audit-end-date"
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => handleFilterChange('endDate', e.target.value)}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="filter-user" className="text-xs">User</Label>
+            <Select value={filters.userId} onValueChange={(value) => handleFilterChange('userId', value)}>
+              <SelectTrigger id="filter-user" data-testid="select-audit-user">
+                <SelectValue placeholder="All Users" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Users</SelectItem>
+                {users?.map(user => (
+                  <SelectItem key={user.id} value={user.id.toString()}>{user.username}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="filter-entity" className="text-xs">Entity Type</Label>
+            <Select value={filters.entityType} onValueChange={(value) => handleFilterChange('entityType', value)}>
+              <SelectTrigger id="filter-entity" data-testid="select-audit-entity">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Types</SelectItem>
+                {entityTypes.map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="filter-action" className="text-xs">Action</Label>
+            <Select value={filters.actionType} onValueChange={(value) => handleFilterChange('actionType', value)}>
+              <SelectTrigger id="filter-action" data-testid="select-audit-action">
+                <SelectValue placeholder="All Actions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Actions</SelectItem>
+                {actionTypes.map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={resetFilters} data-testid="button-reset-filters">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Reset Filters
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading audit logs...</div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">No audit logs found</div>
+        ) : (
+          <>
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12"></TableHead>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Entity</TableHead>
+                    <TableHead>Description</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log: any) => (
+                    <>
+                      <TableRow 
+                        key={log.id} 
+                        className="hover-elevate cursor-pointer"
+                        onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
+                        data-testid={`row-audit-${log.id}`}
+                      >
+                        <TableCell>
+                          {expandedRow === log.id ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4" />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(new Date(log.createdAt), 'MMM dd, yyyy HH:mm:ss')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{log.username}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            log.actionType.includes('delete') ? 'destructive' :
+                            log.actionType.includes('create') || log.actionType.includes('generate') ? 'default' :
+                            'outline'
+                          }>
+                            {log.actionType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{log.entityType}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{log.description}</TableCell>
+                      </TableRow>
+                      
+                      {expandedRow === log.id && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="bg-muted/30">
+                            <div className="p-4 space-y-4">
+                              {log.changeSummary && Object.keys(log.changeSummary).length > 0 && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Changes:</h4>
+                                  <div className="bg-background rounded p-3 space-y-2 text-xs font-mono">
+                                    {Object.entries(log.changeSummary).map(([key, value]: [string, any]) => (
+                                      <div key={key} className="grid grid-cols-3 gap-2">
+                                        <div className="font-semibold">{key}:</div>
+                                        <div className="text-destructive">
+                                          {typeof value.from === 'object' ? JSON.stringify(value.from) : String(value.from)}
+                                        </div>
+                                        <div className="text-green-600 dark:text-green-400">
+                                          → {typeof value.to === 'object' ? JSON.stringify(value.to) : String(value.to)}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {log.metadata && Object.keys(log.metadata).length > 0 && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Metadata:</h4>
+                                  <pre className="bg-background rounded p-3 text-xs overflow-auto">
+                                    {JSON.stringify(log.metadata, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex items-center justify-between pt-4">
+              <div className="text-sm text-muted-foreground">
+                Page {page} of {totalPages} ({auditData?.pagination?.total || 0} total events)
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  data-testid="button-prev-page"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  data-testid="button-next-page"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -4866,9 +5142,9 @@ export default function AdminPage() {
                 <Users className="w-4 h-4" />
                 User Management
               </TabsTrigger>
-              <TabsTrigger value="data" className="flex items-center gap-2">
-                <Database className="w-4 h-4" />
-                Data Import/Export
+              <TabsTrigger value="audit-log" className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4" />
+                Audit Log
               </TabsTrigger>
               <TabsTrigger value="telegram" className="flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -4900,8 +5176,8 @@ export default function AdminPage() {
               <UserManagement />
             </TabsContent>
             
-            <TabsContent value="data">
-              <DataImportExport />
+            <TabsContent value="audit-log">
+              <AuditLog />
             </TabsContent>
             
             <TabsContent value="telegram">
