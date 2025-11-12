@@ -2623,6 +2623,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertTagSchema.parse(req.body);
       const tag = await storage.createTag(validatedData);
+      
+      await logGherAudit(
+        { storage, userId: req.user!.id, username: req.user!.username },
+        "created",
+        "tag",
+        tag.id,
+        `Tag: ${tag.name}`,
+        { after: tag }
+      );
+      
       res.status(201).json(tag);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2636,11 +2646,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update tag
   app.put("/api/tags/:id", authenticate, requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
     try {
+      const before = await storage.getTag(req.params.id);
       const validatedData = insertTagSchema.partial().parse(req.body);
       const tag = await storage.updateTag(req.params.id, validatedData);
       if (!tag) {
         return res.status(404).json({ message: "Tag not found" });
       }
+      
+      await logGherAudit(
+        { storage, userId: req.user!.id, username: req.user!.username },
+        "updated",
+        "tag",
+        tag.id,
+        `Tag: ${tag.name}`,
+        { before, after: tag }
+      );
+      
       res.json(tag);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2654,10 +2675,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete tag
   app.delete("/api/tags/:id", authenticate, requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
     try {
+      const tag = await storage.getTag(req.params.id);
       const deleted = await storage.deleteTag(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Tag not found" });
       }
+      
+      if (tag) {
+        await logGherAudit(
+          { storage, userId: req.user!.id, username: req.user!.username },
+          "deleted",
+          "tag",
+          tag.id,
+          `Tag: ${tag.name}`,
+          { before: tag }
+        );
+      }
+      
       res.json({ message: "Tag deleted successfully" });
     } catch (error) {
       console.error("Delete tag error:", error);

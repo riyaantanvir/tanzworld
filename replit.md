@@ -26,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 - **Third-Party Integrations**: Facebook Graph API for ad account and page synchronization.
 
 ## Database Schema
-- **Core Entities**: Users, Sessions, Clients, Campaigns, Work Reports, Salaries, Ad Accounts, Facebook Pages, Email Settings, SMS Settings, Client Email Preferences (disabled), Farming Accounts, Gher Entries, Gher Tags, Gher Partners, **Gher Capital Transactions** (Nov 12, 2025), **Gher Settlements** (Nov 12, 2025), **Gher Settlement Items** (Nov 12, 2025).
+- **Core Entities**: Users, Sessions, Clients, Campaigns, Work Reports, Salaries, Ad Accounts, Facebook Pages, Email Settings, SMS Settings, Client Email Preferences (disabled), Farming Accounts, Gher Entries, Gher Tags, Gher Partners, **Gher Capital Transactions** (Nov 12, 2025), **Gher Settlements** (Nov 12, 2025), **Gher Settlement Items** (Nov 12, 2025), **Gher Audit Logs** (Nov 12, 2025).
 - **User Menu Permissions**: Granular permission controls for menu visibility including dashboard, campaigns, clients, ad accounts, work reports, Own Farming (parent), New Created (sub-menu), Farming Accounts (sub-menu), finance, and admin panel access.
 - **Validation**: Zod schemas for runtime type validation.
 - **Migrations**: Drizzle Kit for schema management.
@@ -53,6 +53,7 @@ Preferred communication style: Simple, everyday language.
 - **Form Handling**: React Hook Form with Zod validation.
 - **Responsive Design**: Mobile-first approach.
 - **Accessibility**: ARIA-compliant components.
+- **Technical Debt**: admin.tsx file is ~5200 lines and should be refactored into smaller, modular components for better maintainability (recommended for future cleanup).
 
 ## Feature Specifications
 - **Campaign Management**: 
@@ -69,7 +70,7 @@ Preferred communication style: Simple, everyday language.
   - **Own Farming** (parent menu visibility)
   - **New Created** (sub-menu for new account creation)
   - **Farming Accounts** (sub-menu for account management)
-- **Gher Management**: Complete financial tracking module for income/expense management with four dedicated pages:
+- **Gher Management**: Complete financial tracking module for income/expense management with comprehensive audit logging:
   - **Dashboard**: Real-time analytics with advanced filtering and visualization features including:
     - Quick date filters (All Time, This month, Last month, This year, Custom) with "All Time" as default for historical data visibility
     - Side-by-side tag breakdown sections showing Expense Breakdown (left) and Income Breakdown (right) with amount, percentage, and progress bars
@@ -83,6 +84,20 @@ Preferred communication style: Simple, everyday language.
   - **Settings**: Tag management for categorizing expenses
   - Uses shared Sidebar navigation component for consistent UX across all pages
   - **Utility Enhancements** (Nov 11, 2025): Enhanced `usePagination` hook with defense-in-depth safety guard (`Array.isArray(data) ? data : []`) to prevent runtime crashes from non-array inputs
+  - **Audit Log System** (Nov 12, 2025): Comprehensive audit logging for all Gher Management operations:
+    - Tracks all create/update/delete operations on entries, partners, tags, and invoices
+    - Database schema with indexed columns (userId, entityType, actionType, createdAt) for efficient filtering
+    - Automatic change tracking with before/after diffs for update operations using specialized helper function
+    - JSONB storage for change summaries and metadata
+    - Reusable `logGherAudit` helper in server/gher-audit-helper.ts with intelligent Date comparison to avoid false positives
+    - API endpoint `/api/gher/audit-logs` with super-admin access control and pagination (default 50 items/page)
+    - Admin panel "Audit Log" tab replacing "Data Import/Export" with:
+      - Multi-criteria filtering: date range, user, entity type, action type
+      - Expandable table rows showing detailed change diffs and metadata
+      - Color-coded action badges (destructive for deletes, default for creates, outline for updates)
+      - Real-time pagination with page navigation controls
+    - Production-ready with error propagation (audit failures throw exceptions to prevent silent trail gaps)
+    - Date filter bug fixes: endDate normalized to 23:59:59.999 to include full day's events
 
 # External Dependencies
 
