@@ -278,6 +278,29 @@ export interface IStorage {
   deleteGherEntry(id: string): Promise<boolean>;
   deleteAllGherEntries(): Promise<number>;
   getGherDashboardStats(filters?: { startDate?: Date; endDate?: Date; partnerId?: string }): Promise<{ totalIncome: number; totalExpense: number; netBalance: number }>;
+  
+  // Gher Invoice Management
+  getInvoicePreviewData(month: string): Promise<{
+    totalIncome: number;
+    totalExpense: number;
+    netBalance: number;
+    topIncomeTags: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+    topExpenseTags: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+    partnerMovements: Array<{
+      partnerId: string | null;
+      partnerName: string;
+      contribution: number;
+      return: number;
+      withdrawn: number;
+      net: number;
+    }>;
+    incomeEntries: any[];
+    expenseEntries: any[];
+  }>;
+  getNextInvoiceSequence(yearMonth: string): Promise<number>;
+  createInvoice(data: any): Promise<any>;
+  getInvoice(id: string): Promise<any>;
+  listInvoices(month?: string): Promise<any[]>;
 }
 
 export class MemStorage implements IStorage {

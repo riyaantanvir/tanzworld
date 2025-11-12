@@ -109,10 +109,16 @@ import {
   gherCapitalTransactions,
   gherSettlements,
   gherSettlementItems,
-  gherEntries
+  gherEntries,
+  gherInvoiceSequences,
+  gherInvoices,
+  type GherInvoice,
+  type InsertGherInvoice,
+  type GherInvoiceSequence,
+  type InsertGherInvoiceSequence
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { eq, and, desc, gte, lte, or, like, sql, count } from "drizzle-orm";
+import { eq, and, desc, gte, lte, lt, or, like, sql, count } from "drizzle-orm";
 import { db } from "./db";
 import type { IStorage } from "./storage";
 import { encrypt, decrypt, type EncryptedData } from "./encryption";
@@ -2932,6 +2938,245 @@ export class DatabaseStorage implements IStorage {
         expenseByTag: [],
         incomeByTag: [],
       };
+    }
+  }
+
+  // Gher Invoice Management
+  async getInvoicePreviewData(month: string): Promise<{
+    totalIncome: number;
+    totalExpense: number;
+    netBalance: number;
+    topIncomeTags: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+    topExpenseTags: Array<{ tagId: string | null; tagName: string; amount: number; percentage: number }>;
+    partnerMovements: Array<{
+      partnerId: string | null;
+      partnerName: string;
+      contribution: number;
+      return: number;
+      withdrawn: number;
+      net: number;
+    }>;
+    incomeEntries: any[];
+    expenseEntries: any[];
+  }> {
+    try {
+      const { DateTime } = await import('luxon');
+      
+      // Parse month to Asia/Dhaka timezone boundaries
+      const startOfMonth = DateTime.fromISO(`${month}-01`, { zone: 'Asia/Dhaka' }).startOf('day');
+      const endOfMonth = startOfMonth.plus({ months: 1 });
+      
+      const startDate = startOfMonth.toJSDate();
+      const endDate = endOfMonth.toJSDate();
+      
+      // Fetch entries within month range
+      const allEntries = await this.getGherEntries({ startDate, endDate });
+      const allTags = await this.getGherTags();
+      const allPartners = await this.getGherPartners();
+      
+      // Fetch capital transactions within month range
+      const capitalTransactions = await this.db
+        .select()
+        .from(gherCapitalTransactions)
+        .where(
+          and(
+            gte(gherCapitalTransactions.date, startDate),
+            lt(gherCapitalTransactions.date, endDate)
+          )
+        );
+      
+      let totalIncome = 0;
+      let totalExpense = 0;
+      const expenseByTagMap = new Map<string | null, number>();
+      const incomeByTagMap = new Map<string | null, number>();
+      
+      const incomeEntries: any[] = [];
+      const expenseEntries: any[] = [];
+      
+      // Aggregate entries
+      allEntries.forEach(entry => {
+        const amount = parseFloat(entry.amount);
+        if (entry.type === 'income') {
+          totalIncome += amount;
+          const current = incomeByTagMap.get(entry.tagId) || 0;
+          incomeByTagMap.set(entry.tagId, current + amount);
+          incomeEntries.push(entry);
+        } else if (entry.type === 'expense') {
+          totalExpense += amount;
+          const current = expenseByTagMap.get(entry.tagId) || 0;
+          expenseByTagMap.set(entry.tagId, current + amount);
+          expenseEntries.push(entry);
+        }
+      });
+      
+      // Sort entries by date ascending
+      incomeEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      expenseEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      // Calculate top tags
+      const expenseByTag = Array.from(expenseByTagMap.entries())
+        .map(([tagId, amount]) => {
+          const tag = allTags.find(t => t.id === tagId);
+          return {
+            tagId,
+            tagName: tag?.name || 'Untagged',
+            amount,
+            percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+          };
+        })
+        .sort((a, b) => b.amount - a.amount);
+      
+      const incomeByTag = Array.from(incomeByTagMap.entries())
+        .map(([tagId, amount]) => {
+          const tag = allTags.find(t => t.id === tagId);
+          return {
+            tagId,
+            tagName: tag?.name || 'Untagged',
+            amount,
+            percentage: totalIncome > 0 ? (amount / totalIncome) * 100 : 0,
+          };
+        })
+        .sort((a, b) => b.amount - a.amount);
+      
+      const topIncomeTags = incomeByTag.slice(0, 2);
+      const topExpenseTags = expenseByTag.slice(0, 2);
+      
+      // Aggregate partner capital movements
+      const partnerMovementsMap = new Map<string | null, {
+        partnerName: string;
+        contribution: number;
+        return: number;
+        withdrawn: number;
+      }>();
+      
+      capitalTransactions.forEach(txn => {
+        const amount = parseFloat(txn.amount);
+        const partnerId = txn.partnerId;
+        const partner = allPartners.find(p => p.id === partnerId);
+        const partnerName = partner?.name || 'Unknown Partner';
+        
+        const current = partnerMovementsMap.get(partnerId) || {
+          partnerName,
+          contribution: 0,
+          return: 0,
+          withdrawn: 0,
+        };
+        
+        if (txn.type === 'contribution') {
+          current.contribution += amount;
+        } else if (txn.type === 'return') {
+          current.return += amount;
+        } else if (txn.type === 'withdrawal') {
+          current.withdrawn += amount;
+        }
+        
+        partnerMovementsMap.set(partnerId, current);
+      });
+      
+      const partnerMovements = Array.from(partnerMovementsMap.entries())
+        .map(([partnerId, data]) => ({
+          partnerId,
+          partnerName: data.partnerName,
+          contribution: data.contribution,
+          return: data.return,
+          withdrawn: data.withdrawn,
+          net: data.contribution - data.return - data.withdrawn,
+        }));
+      
+      return {
+        totalIncome,
+        totalExpense,
+        netBalance: totalIncome - totalExpense,
+        topIncomeTags,
+        topExpenseTags,
+        partnerMovements,
+        incomeEntries,
+        expenseEntries,
+      };
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get invoice preview data:", error);
+      throw error;
+    }
+  }
+
+  async getNextInvoiceSequence(yearMonth: string): Promise<number> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        // Use SELECT FOR UPDATE to lock the row
+        const existing = await tx
+          .select()
+          .from(gherInvoiceSequences)
+          .where(eq(gherInvoiceSequences.yearMonth, yearMonth))
+          .for('update');
+        
+        if (existing.length > 0) {
+          // Increment existing sequence
+          const nextSequence = existing[0].lastSequence + 1;
+          await tx
+            .update(gherInvoiceSequences)
+            .set({ 
+              lastSequence: nextSequence,
+              updatedAt: new Date(),
+            })
+            .where(eq(gherInvoiceSequences.yearMonth, yearMonth));
+          return nextSequence;
+        } else {
+          // Create new sequence starting at 1
+          await tx
+            .insert(gherInvoiceSequences)
+            .values({
+              yearMonth,
+              lastSequence: 1,
+            });
+          return 1;
+        }
+      });
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get next invoice sequence:", error);
+      throw error;
+    }
+  }
+
+  async createInvoice(data: any): Promise<any> {
+    try {
+      const result = await this.db.insert(gherInvoices).values(data).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to create invoice:", error);
+      throw error;
+    }
+  }
+
+  async getInvoice(id: string): Promise<any> {
+    try {
+      const result = await this.db
+        .select()
+        .from(gherInvoices)
+        .where(eq(gherInvoices.id, id));
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get invoice:", error);
+      return undefined;
+    }
+  }
+
+  async listInvoices(month?: string): Promise<any[]> {
+    try {
+      if (month) {
+        return await this.db
+          .select()
+          .from(gherInvoices)
+          .where(eq(gherInvoices.yearMonth, month))
+          .orderBy(desc(gherInvoices.generatedAt));
+      } else {
+        return await this.db
+          .select()
+          .from(gherInvoices)
+          .orderBy(desc(gherInvoices.generatedAt));
+      }
+    } catch (error) {
+      console.error("[DB ERROR] Failed to list invoices:", error);
+      return [];
     }
   }
 }

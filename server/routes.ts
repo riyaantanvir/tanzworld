@@ -5748,6 +5748,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gher Invoice Management
+  // Preview invoice data for a specific month (no persistence)
+  app.get("/api/gher/invoices/preview", authenticate, requirePagePermission('gher_invoices', 'view'), async (req: Request, res: Response) => {
+    try {
+      const month = req.query.month as string;
+      if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ message: "Invalid month format. Expected YYYY-MM" });
+      }
+      
+      const previewData = await storage.getInvoicePreviewData(month);
+      res.json(previewData);
+    } catch (error) {
+      console.error("Get invoice preview error:", error);
+      res.status(500).json({ message: "Failed to fetch invoice preview" });
+    }
+  });
+
+  // Generate and persist invoice
+  app.post("/api/gher/invoices", authenticate, requirePagePermission('gher_invoices', 'edit'), async (req: Request, res: Response) => {
+    try {
+      const { month, notes, generatedBy } = req.body;
+      
+      if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ message: "Invalid month format. Expected YYYY-MM" });
+      }
+      
+      // Get preview data for aggregation
+      const previewData = await storage.getInvoicePreviewData(month);
+      
+      // Get next sequence number
+      const yearMonth = month; // Format: YYYY-MM
+      const sequence = await storage.getNextInvoiceSequence(yearMonth);
+      
+      // Format invoice number: GHER-INV-YYYYMM-###
+      const invoiceNumber = `GHER-INV-${month.replace('-', '')}-${sequence.toString().padStart(3, '0')}`;
+      
+      // Prepare invoice data
+      const invoiceData = {
+        invoiceNumber,
+        month: `${month}-01`, // First day of month
+        yearMonth,
+        totalIncome: previewData.totalIncome.toString(),
+        totalExpense: previewData.totalExpense.toString(),
+        netBalance: previewData.netBalance.toString(),
+        topIncomeTags: JSON.stringify(previewData.topIncomeTags),
+        topExpenseTags: JSON.stringify(previewData.topExpenseTags),
+        partnerMovements: JSON.stringify(previewData.partnerMovements),
+        notes: notes || null,
+        status: 'generated',
+        generatedBy: generatedBy || req.user?.id,
+      };
+      
+      const invoice = await storage.createInvoice(invoiceData);
+      res.status(201).json(invoice);
+    } catch (error) {
+      console.error("Create invoice error:", error);
+      res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  // List invoices (optionally filtered by month)
+  app.get("/api/gher/invoices", authenticate, requirePagePermission('gher_invoices', 'view'), async (req: Request, res: Response) => {
+    try {
+      const month = req.query.month as string | undefined;
+      if (month && !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ message: "Invalid month format. Expected YYYY-MM" });
+      }
+      
+      const invoices = await storage.listInvoices(month);
+      res.json(invoices);
+    } catch (error) {
+      console.error("List invoices error:", error);
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  // Get specific invoice
+  app.get("/api/gher/invoices/:id", authenticate, requirePagePermission('gher_invoices', 'view'), async (req: Request, res: Response) => {
+    try {
+      const invoice = await storage.getInvoice(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      res.json(invoice);
+    } catch (error) {
+      console.error("Get invoice error:", error);
+      res.status(500).json({ message: "Failed to fetch invoice" });
+    }
+  });
+
+  // Download invoice as PDF (stub for now - will implement PDF generation)
+  app.get("/api/gher/invoices/:id/pdf", authenticate, requirePagePermission('gher_invoices', 'view'), async (req: Request, res: Response) => {
+    try {
+      const invoice = await storage.getInvoice(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // TODO: Implement PDF generation using PDFKit
+      res.status(501).json({ message: "PDF generation not yet implemented" });
+    } catch (error) {
+      console.error("Download invoice PDF error:", error);
+      res.status(500).json({ message: "Failed to download PDF" });
+    }
+  });
+
+  // Download invoice data as CSV (stub for now - will implement CSV generation)
+  app.get("/api/gher/invoices/:id/csv", authenticate, requirePagePermission('gher_invoices', 'view'), async (req: Request, res: Response) => {
+    try {
+      const invoice = await storage.getInvoice(req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // TODO: Implement CSV export using fast-csv
+      res.status(501).json({ message: "CSV export not yet implemented" });
+    } catch (error) {
+      console.error("Download invoice CSV error:", error);
+      res.status(500).json({ message: "Failed to download CSV" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

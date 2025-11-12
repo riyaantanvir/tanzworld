@@ -29,6 +29,7 @@ import GherDashboard from "@/pages/gher-dashboard";
 import GherExpense from "@/pages/gher-expense";
 import GherPartner from "@/pages/gher-partner";
 import GherSettings from "@/pages/gher-settings";
+import GherInvoice from "@/pages/gher-invoice";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -261,6 +262,7 @@ function Router() {
       <Route path="/gher/dashboard" component={() => <ProtectedRoute component={GherDashboard} pageKey="gher_management" />} />
       <Route path="/gher/expense" component={() => <ProtectedRoute component={GherExpense} pageKey="gher_management" />} />
       <Route path="/gher/partner" component={() => <ProtectedRoute component={GherPartner} pageKey="gher_management" />} />
+      <Route path="/gher/invoice" component={() => <ProtectedRoute component={GherInvoice} pageKey="gher_invoices" />} />
       <Route path="/gher/settings" component={() => <ProtectedRoute component={GherSettings} pageKey="gher_management" />} />
       <Route path="/admin" component={() => <ProtectedRoute component={AdminPage} pageKey="admin" />} />
       <Route path="/" component={() => <ProtectedRoute component={Home} pageKey="dashboard" />} />
