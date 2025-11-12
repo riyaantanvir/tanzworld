@@ -63,6 +63,10 @@ import {
   type InsertGherPartner,
   type GherCapitalTransaction,
   type InsertGherCapitalTransaction,
+  type GherSettlement,
+  type InsertGherSettlement,
+  type GherSettlementItem,
+  type InsertGherSettlementItem,
   type GherEntry,
   type InsertGherEntry,
   type PaginatedResponse,
@@ -103,6 +107,8 @@ import {
   gherTags,
   gherPartners,
   gherCapitalTransactions,
+  gherSettlements,
+  gherSettlementItems,
   gherEntries
 } from "@shared/schema";
 import { randomUUID } from "crypto";

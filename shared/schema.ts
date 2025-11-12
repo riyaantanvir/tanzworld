@@ -1066,6 +1066,37 @@ export const gherCapitalTransactions = pgTable("gher_capital_transactions", {
   }
 });
 
+export const gherSettlements = pgTable("gher_settlements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settlementDate: timestamp("settlement_date").notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  totalIncome: decimal("total_income", { precision: 12, scale: 2 }).notNull(),
+  totalExpense: decimal("total_expense", { precision: 12, scale: 2 }).notNull(),
+  netBalance: decimal("net_balance", { precision: 12, scale: 2 }).notNull(),
+  distributionRule: text("distribution_rule").notNull(), // "repay_capital_first", "equal_distribution"
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const gherSettlementItems = pgTable("gher_settlement_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settlementId: varchar("settlement_id").references(() => gherSettlements.id, { onDelete: "cascade" }).notNull(),
+  partnerId: varchar("partner_id").references(() => gherPartners.id, { onDelete: "cascade" }).notNull(),
+  sharePercentage: decimal("share_percentage", { precision: 5, scale: 2 }).notNull(),
+  capitalBefore: decimal("capital_before", { precision: 12, scale: 2 }).notNull(), // Outstanding capital before settlement
+  capitalReturn: decimal("capital_return", { precision: 12, scale: 2 }).notNull(), // Capital returned in this settlement
+  capitalAfter: decimal("capital_after", { precision: 12, scale: 2 }).notNull(), // Outstanding capital after settlement
+  profitLoss: decimal("profit_loss", { precision: 12, scale: 2 }).notNull(), // Profit (+) or Loss (-) allocated
+  totalDistributed: decimal("total_distributed", { precision: 12, scale: 2 }).notNull(), // Capital Return + Profit/Loss
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => {
+  return {
+    capitalBeforeCheck: sql`CHECK (${table.capitalBefore} >= 0)`,
+    capitalAfterCheck: sql`CHECK (${table.capitalAfter} >= 0)`,
+  };
+});
+
 export const gherEntries = pgTable("gher_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   date: timestamp("date").notNull(),
@@ -1103,6 +1134,32 @@ export const insertGherCapitalTransactionSchema = createInsertSchema(gherCapital
 });
 export type InsertGherCapitalTransaction = z.infer<typeof insertGherCapitalTransactionSchema>;
 export type GherCapitalTransaction = typeof gherCapitalTransactions.$inferSelect;
+
+export const insertGherSettlementSchema = createInsertSchema(gherSettlements).omit({ 
+  id: true, 
+  createdAt: true 
+}).extend({
+  totalIncome: z.coerce.number().min(0),
+  totalExpense: z.coerce.number().min(0),
+  netBalance: z.coerce.number(),
+  distributionRule: z.enum(["repay_capital_first", "equal_distribution"]),
+});
+export type InsertGherSettlement = z.infer<typeof insertGherSettlementSchema>;
+export type GherSettlement = typeof gherSettlements.$inferSelect;
+
+export const insertGherSettlementItemSchema = createInsertSchema(gherSettlementItems).omit({ 
+  id: true, 
+  createdAt: true 
+}).extend({
+  sharePercentage: z.coerce.number().min(0).max(100),
+  capitalBefore: z.coerce.number().min(0, "Capital before settlement cannot be negative"),
+  capitalReturn: z.coerce.number().min(0),
+  capitalAfter: z.coerce.number().min(0, "Capital after settlement cannot be negative"),
+  profitLoss: z.coerce.number(),
+  totalDistributed: z.coerce.number(),
+});
+export type InsertGherSettlementItem = z.infer<typeof insertGherSettlementItemSchema>;
+export type GherSettlementItem = typeof gherSettlementItems.$inferSelect;
 
 export const insertGherEntrySchema = createInsertSchema(gherEntries).omit({ 
   id: true, 
