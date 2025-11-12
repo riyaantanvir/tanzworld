@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Pencil, Trash2, Download, Upload, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Download, Upload, FileDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -27,6 +28,16 @@ export default function GherExpense() {
     tagId: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Import progress state
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({
+    current: 0,
+    total: 0,
+    successCount: 0,
+    errorCount: 0,
+    errors: [] as string[],
+  });
 
   // Parse URL params for pagination
   const urlParams = new URLSearchParams(location.split('?')[1] || '');
