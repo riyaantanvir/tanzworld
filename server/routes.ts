@@ -5787,7 +5787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Prepare invoice data
       const invoiceData = {
         invoiceNumber,
-        month: `${month}-01`, // First day of month
+        month: new Date(`${month}-01T00:00:00Z`), // Convert to Date object
         yearMonth,
         totalIncome: previewData.totalIncome.toString(),
         totalExpense: previewData.totalExpense.toString(),
@@ -5798,6 +5798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: notes || null,
         status: 'generated',
         generatedBy: generatedBy || req.user?.id,
+        generatedAt: new Date(), // Add generatedAt timestamp
       };
       
       const invoice = await storage.createInvoice(invoiceData);
