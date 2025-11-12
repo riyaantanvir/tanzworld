@@ -523,6 +523,92 @@ export default function GherExpense() {
             </div>
           </div>
 
+          {(isImporting || importProgress.errors.length > 0) && (
+            <Card data-testid="card-import-progress">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  {isImporting ? (
+                    <>
+                      <Upload className="w-5 h-5 animate-pulse" />
+                      Importing CSV...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      Import Complete
+                    </>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Processing: {importProgress.current} / {importProgress.total} rows
+                    </span>
+                    <span className="font-medium">
+                      {importProgress.total > 0 
+                        ? Math.round((importProgress.current / importProgress.total) * 100) 
+                        : 0}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={importProgress.total > 0 
+                      ? (importProgress.current / importProgress.total) * 100 
+                      : 0} 
+                    className="h-2"
+                    data-testid="progress-import"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/20 rounded-md border border-green-200 dark:border-green-800">
+                    <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Success</p>
+                      <p className="text-lg font-semibold text-green-700 dark:text-green-400" data-testid="text-success-count">
+                        {importProgress.successCount}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-md border border-red-200 dark:border-red-800">
+                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Errors</p>
+                      <p className="text-lg font-semibold text-red-700 dark:text-red-400" data-testid="text-error-count">
+                        {importProgress.errorCount}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {importProgress.errors.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium">Error Details</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setImportProgress(prev => ({ ...prev, errors: [] }))}
+                        data-testid="button-clear-errors"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1 p-3 bg-muted rounded-md border" data-testid="list-import-errors">
+                      {importProgress.errors.map((error, index) => (
+                        <div key={index} className="flex items-start gap-2 text-sm">
+                          <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-muted-foreground">{error}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>{editingEntry ? "Edit Entry" : "Add New Entry"}</CardTitle>
