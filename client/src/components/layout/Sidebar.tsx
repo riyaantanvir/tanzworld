@@ -228,6 +228,13 @@ export default function Sidebar({ children }: SidebarProps) {
           pageKey: "gher_management"
         },
         {
+          href: "/gher/invoice",
+          icon: FileText,
+          label: "Invoice",
+          testId: "nav-gher-invoice",
+          pageKey: "gher_invoices"
+        },
+        {
           href: "/gher/settings",
           icon: Settings,
           label: "Settings",
