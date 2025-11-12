@@ -170,7 +170,13 @@ export default function GherExpense() {
         page: '1',
         pageSize: '999999', // Very large number to get all entries
       });
+      const headers: Record<string, string> = {};
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(`/api/gher/entries?${params}`, {
+        headers,
         credentials: "include",
       });
       if (!response.ok) {
