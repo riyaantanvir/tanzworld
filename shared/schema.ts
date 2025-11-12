@@ -497,6 +497,7 @@ export const userMenuPermissions = pgTable("user_menu_permissions", {
   farmingAccounts: boolean("farming_accounts").default(false),
   adminPanel: boolean("admin_panel").default(false),
   gherManagement: boolean("gher_management").default(false),
+  gherInvoices: boolean("gher_invoices").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => {
@@ -1168,6 +1169,70 @@ export const insertGherEntrySchema = createInsertSchema(gherEntries).omit({
 });
 export type InsertGherEntry = z.infer<typeof insertGherEntrySchema>;
 export type GherEntry = typeof gherEntries.$inferSelect;
+
+// Invoice sequence management for auto-increment numbering
+export const gherInvoiceSequences = pgTable("gher_invoice_sequences", {
+  yearMonth: varchar("year_month", { length: 7 }).primaryKey(), // Format: "YYYY-MM"
+  lastSequence: integer("last_sequence").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Gher invoices with persisted monthly snapshots
+export const gherInvoices = pgTable("gher_invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceNumber: text("invoice_number").notNull().unique(), // Format: GHER-INV-YYYYMM-###
+  month: timestamp("month").notNull(), // Truncated to first day of month in Asia/Dhaka
+  yearMonth: varchar("year_month", { length: 7 }).notNull(), // Format: "YYYY-MM" for easy filtering
+  
+  // Cached aggregated data (JSON for flexibility)
+  totalIncome: decimal("total_income", { precision: 12, scale: 2 }).notNull(),
+  totalExpense: decimal("total_expense", { precision: 12, scale: 2 }).notNull(),
+  netBalance: decimal("net_balance", { precision: 12, scale: 2 }).notNull(),
+  
+  // Top tags highlights (JSON: [{tagId, tagName, amount, percentage}, ...])
+  topIncomeTags: text("top_income_tags"), // JSON array
+  topExpenseTags: text("top_expense_tags"), // JSON array
+  
+  // Partner capital movements summary (JSON: [{partnerId, partnerName, contribution, return, withdrawn, net}, ...])
+  partnerMovements: text("partner_movements"), // JSON array
+  
+  // Additional metadata
+  notes: text("notes"),
+  status: text("status").notNull().default("generated"), // "generated", "finalized"
+  
+  // Artifact paths (optional - for caching generated PDFs/CSVs)
+  pdfPath: text("pdf_path"),
+  csvPath: text("csv_path"),
+  
+  // Checksum for deterministic verification
+  dataChecksum: text("data_checksum"),
+  
+  // Audit fields
+  generatedBy: varchar("generated_by").references(() => users.id, { onDelete: "set null" }),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertGherInvoiceSequenceSchema = createInsertSchema(gherInvoiceSequences).omit({ 
+  updatedAt: true 
+});
+export type InsertGherInvoiceSequence = z.infer<typeof insertGherInvoiceSequenceSchema>;
+export type GherInvoiceSequence = typeof gherInvoiceSequences.$inferSelect;
+
+export const insertGherInvoiceSchema = createInsertSchema(gherInvoices).omit({ 
+  id: true, 
+  createdAt: true,
+  generatedAt: true
+}).extend({
+  month: z.string().regex(/^\d{4}-\d{2}-01/, "Month must be in YYYY-MM-01 format"),
+  yearMonth: z.string().regex(/^\d{4}-\d{2}$/, "Year-month must be in YYYY-MM format"),
+  totalIncome: z.coerce.number().min(0),
+  totalExpense: z.coerce.number().min(0),
+  netBalance: z.coerce.number(),
+  status: z.enum(["generated", "finalized"]).optional(),
+});
+export type InsertGherInvoice = z.infer<typeof insertGherInvoiceSchema>;
+export type GherInvoice = typeof gherInvoices.$inferSelect;
 
 // Pagination types
 export interface PaginatedResponse<T> {
