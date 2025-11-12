@@ -255,6 +255,16 @@ export default function GherExpense() {
           return;
         }
 
+        const totalRows = lines.length - 1;
+        setIsImporting(true);
+        setImportProgress({
+          current: 0,
+          total: totalRows,
+          successCount: 0,
+          errorCount: 0,
+          errors: [],
+        });
+
         let successCount = 0;
         let errorCount = 0;
         const errors: string[] = [];
@@ -266,8 +276,15 @@ export default function GherExpense() {
 
           const values = line.split(",").map(v => v.trim());
           if (values.length < 4) {
-            errors.push(`Row ${i + 1}: Not enough columns`);
+            const errorMsg = `Row ${i + 1}: Not enough columns`;
+            errors.push(errorMsg);
             errorCount++;
+            setImportProgress(prev => ({
+              ...prev,
+              current: i,
+              errorCount: errorCount,
+              errors: [...prev.errors, errorMsg],
+            }));
             continue;
           }
 
@@ -285,22 +302,43 @@ export default function GherExpense() {
             }
 
             if (isNaN(entryDate.getTime())) {
-              errors.push(`Row ${i + 1}: Invalid date "${dateStr}"`);
+              const errorMsg = `Row ${i + 1}: Invalid date "${dateStr}"`;
+              errors.push(errorMsg);
               errorCount++;
+              setImportProgress(prev => ({
+                ...prev,
+                current: i,
+                errorCount: errorCount,
+                errors: [...prev.errors, errorMsg],
+              }));
               continue;
             }
 
             const amount = parseFloat(amountStr);
             if (isNaN(amount)) {
-              errors.push(`Row ${i + 1}: Invalid amount "${amountStr}"`);
+              const errorMsg = `Row ${i + 1}: Invalid amount "${amountStr}"`;
+              errors.push(errorMsg);
               errorCount++;
+              setImportProgress(prev => ({
+                ...prev,
+                current: i,
+                errorCount: errorCount,
+                errors: [...prev.errors, errorMsg],
+              }));
               continue;
             }
 
             const entryType = type.toLowerCase().trim();
             if (entryType !== "income" && entryType !== "expense") {
-              errors.push(`Row ${i + 1}: Invalid type "${type}" (must be "income" or "expense")`);
+              const errorMsg = `Row ${i + 1}: Invalid type "${type}" (must be "income" or "expense")`;
+              errors.push(errorMsg);
               errorCount++;
+              setImportProgress(prev => ({
+                ...prev,
+                current: i,
+                errorCount: errorCount,
+                errors: [...prev.errors, errorMsg],
+              }));
               continue;
             }
 
@@ -358,12 +396,25 @@ export default function GherExpense() {
 
             await apiRequest("POST", "/api/gher/entries", entryData);
             successCount++;
+            setImportProgress(prev => ({
+              ...prev,
+              current: i,
+              successCount: successCount,
+            }));
           } catch (error) {
-            errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
+            const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`;
+            errors.push(errorMsg);
             errorCount++;
+            setImportProgress(prev => ({
+              ...prev,
+              current: i,
+              errorCount: errorCount,
+              errors: [...prev.errors, errorMsg],
+            }));
           }
         }
 
+        setIsImporting(false);
         queryClient.invalidateQueries({ queryKey: ["/api/gher/entries"] });
         queryClient.invalidateQueries({ queryKey: ["/api/gher/dashboard-stats"] });
         queryClient.invalidateQueries({ queryKey: ["/api/gher/tags"] });
@@ -397,6 +448,7 @@ export default function GherExpense() {
         }
       } catch (error) {
         console.error("CSV import error:", error);
+        setIsImporting(false);
         toast({ 
           title: "Error reading CSV file", 
           description: error instanceof Error ? error.message : "Unknown error",
