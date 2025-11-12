@@ -449,9 +449,41 @@ export default function WorkReportsPage() {
         // Parse and validate each row
         dataRows.forEach((line, index) => {
           const errors: string[] = [];
-          const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-          const cleanValues = values.map(v => v.replace(/^"/, '').replace(/"$/, '').trim());
-
+          
+          // Proper CSV parsing that handles empty fields
+          const parseCsvLine = (line: string): string[] => {
+            const result: string[] = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              const nextChar = line[i + 1];
+              
+              if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                  // Escaped quote
+                  current += '"';
+                  i++; // Skip next quote
+                } else {
+                  // Toggle quote state
+                  inQuotes = !inQuotes;
+                }
+              } else if (char === ',' && !inQuotes) {
+                // Field separator
+                result.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            
+            // Add last field
+            result.push(current.trim());
+            return result;
+          };
+          
+          const cleanValues = parseCsvLine(line);
           const [dateStr = "", title = "", description = "", hoursStr = "", status = "submitted", userName = "", userIdFromCsv = ""] = cleanValues;
           
           // Store original data
