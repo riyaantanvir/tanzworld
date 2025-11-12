@@ -71,6 +71,35 @@ import { cn } from "@/lib/utils";
 import { z } from "zod";
 import { insertWorkReportSchema, type WorkReport, type User, UserRole } from "@shared/schema";
 import Sidebar from "@/components/layout/Sidebar";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { AlertCircle, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+
+// CSV Import types
+type ImportRow = {
+  index: number;
+  originalData: {
+    date: string;
+    title: string;
+    description: string;
+    hours: string;
+    status: string;
+    userName: string;
+    userId: string;
+  };
+  parsedData: WorkReportFormData | null;
+  errors: string[];
+  status: 'pending' | 'uploading' | 'success' | 'failed';
+  failureReason?: string;
+};
+
+type ImportState = {
+  rows: ImportRow[];
+  isOpen: boolean;
+  uploadProgress: number;
+  isUploading: boolean;
+  uploadComplete: boolean;
+};
 
 // Form schemas
 const workReportFormSchema = insertWorkReportSchema.extend({
@@ -108,6 +137,7 @@ export default function WorkReportsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingWorkReport, setEditingWorkReport] = useState<WorkReport | null>(null);
+  const [importState, setImportState] = useState<ImportState | null>(null);
   const { toast } = useToast();
 
   // Get current user info
@@ -357,7 +387,7 @@ export default function WorkReportsPage() {
     });
   };
 
-  // CSV Import function
+  // Step 1: Parse and validate CSV
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -396,9 +426,8 @@ export default function WorkReportsPage() {
           return;
         }
 
-        // Parse CSV (simple parsing - assumes proper formatting)
+        // Parse CSV headers
         const headers = lines[0].split(",").map(h => h.trim());
-        const expectedHeaders = ["Date", "Title", "Description", "Hours Worked", "Status", "User", "User ID"];
         
         // Validate headers
         const hasRequiredHeaders = ["Date", "Title", "Hours Worked"].every(required => 
@@ -415,86 +444,112 @@ export default function WorkReportsPage() {
         }
 
         const dataRows = lines.slice(1);
-        let importedCount = 0;
-        let skippedCount = 0;
+        const importRows: ImportRow[] = [];
 
-        // Process each row
+        // Parse and validate each row
         dataRows.forEach((line, index) => {
-          try {
-            // Simple CSV parsing - split by comma and handle quoted values
-            const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-            const cleanValues = values.map(v => v.replace(/^"/, '').replace(/"$/, '').trim());
+          const errors: string[] = [];
+          const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+          const cleanValues = values.map(v => v.replace(/^"/, '').replace(/"$/, '').trim());
 
-            if (cleanValues.length < 4) {
-              skippedCount++;
-              return;
+          const [dateStr = "", title = "", description = "", hoursStr = "", status = "submitted", userName = "", userIdFromCsv = ""] = cleanValues;
+          
+          // Store original data
+          const originalData = {
+            date: dateStr,
+            title,
+            description,
+            hours: hoursStr,
+            status,
+            userName,
+            userId: userIdFromCsv,
+          };
+
+          // Validate required fields
+          if (!dateStr) errors.push("Date is required");
+          if (!title) errors.push("Title is required");
+          if (!hoursStr) errors.push("Hours Worked is required");
+
+          // Parse and validate date
+          let parsedDate: Date | null = null;
+          if (dateStr) {
+            parsedDate = new Date(dateStr);
+            if (isNaN(parsedDate.getTime())) {
+              errors.push("Invalid date format");
             }
+          }
 
-            const [dateStr, title, description, hoursStr, status = "submitted", userName, userIdFromCsv] = cleanValues;
-            
-            // Validate required fields
-            if (!dateStr || !title || !hoursStr) {
-              skippedCount++;
-              return;
-            }
-
-            // Parse date
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) {
-              skippedCount++;
-              return;
-            }
-
-            // Parse hours
-            const hoursWorked = parseFloat(hoursStr);
+          // Parse and validate hours
+          let hoursWorked = 0;
+          let hours = "0";
+          let minutes = "0";
+          if (hoursStr) {
+            hoursWorked = parseFloat(hoursStr);
             if (isNaN(hoursWorked) || hoursWorked <= 0) {
-              skippedCount++;
-              return;
+              errors.push("Hours must be greater than 0");
+            } else {
+              hours = Math.floor(hoursWorked).toString();
+              minutes = Math.round((hoursWorked % 1) * 60).toString();
             }
+          }
 
-            // Determine the user ID to use
-            let finalUserId = currentUser?.id || "";
-            
-            // If User ID is provided in CSV, validate it (only for admins with loaded user data)
-            if (userIdFromCsv && userIdFromCsv.trim() && isAdmin && users.length > 0) {
-              const userExists = users.find(u => u.id === userIdFromCsv.trim());
-              if (userExists) {
-                finalUserId = userIdFromCsv.trim();
-              }
-              // If User ID doesn't exist, fall back to current user but don't skip the row
+          // Validate status
+          const validStatuses = ["submitted", "approved", "rejected"];
+          const normalizedStatus = status.toLowerCase().trim();
+          if (normalizedStatus && !validStatuses.includes(normalizedStatus)) {
+            errors.push(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+          }
+
+          // Determine user ID
+          let finalUserId = currentUser?.id || "";
+          if (userIdFromCsv && userIdFromCsv.trim() && isAdmin && users.length > 0) {
+            const userExists = users.find(u => u.id === userIdFromCsv.trim());
+            if (userExists) {
+              finalUserId = userIdFromCsv.trim();
+            } else {
+              errors.push(`User ID "${userIdFromCsv}" not found. Will use current user.`);
             }
+          }
 
-            // Create work report data
-            const workReportData = {
+          // Create parsed data if no critical errors
+          let parsedData: WorkReportFormData | null = null;
+          if (errors.length === 0 || (errors.length === 1 && errors[0].includes("Will use current user"))) {
+            parsedData = {
               title: title.trim(),
-              description: description?.trim() || "",
-              date,
-              hoursWorked,
-              status: (status.trim() || "submitted") as "submitted" | "approved" | "rejected",
+              description: description.trim(),
+              date: parsedDate!,
+              hours,
+              minutes,
+              hoursWorked: hoursWorked.toString(),
+              status: normalizedStatus as "submitted" | "approved" | "rejected",
               userId: finalUserId,
             };
-
-            // Submit via mutation
-            createMutation.mutate({
-              title: workReportData.title,
-              description: workReportData.description,
-              hoursWorked: workReportData.hoursWorked.toString(),
-              hours: Math.floor(workReportData.hoursWorked).toString(),
-              minutes: Math.round((workReportData.hoursWorked % 1) * 60).toString(),
-              date: workReportData.date,
-              status: workReportData.status,
-              userId: workReportData.userId,
-            });
-
-            importedCount++;
-          } catch (error) {
-            skippedCount++;
           }
+
+          importRows.push({
+            index: index + 1,
+            originalData,
+            parsedData,
+            errors,
+            status: 'pending',
+          });
         });
 
+        // Show review dialog
+        setImportState({
+          rows: importRows,
+          isOpen: true,
+          uploadProgress: 0,
+          isUploading: false,
+          uploadComplete: false,
+        });
+
+        const validCount = importRows.filter(r => r.errors.length === 0 || (r.errors.length === 1 && r.errors[0].includes("Will use current user"))).length;
+        const errorCount = importRows.length - validCount;
+
         toast({
-          title: "Import completed",
-          description: `Imported ${importedCount} work reports. ${skippedCount > 0 ? `Skipped ${skippedCount} invalid rows.` : ''}`,
+          title: "CSV parsed successfully",
+          description: `Found ${importRows.length} rows: ${validCount} valid, ${errorCount} with errors.`,
         });
 
       } catch (error) {
@@ -507,9 +562,144 @@ export default function WorkReportsPage() {
     };
 
     reader.readAsText(file);
-    
-    // Reset the input
     event.target.value = "";
+  };
+
+  // Step 3: Sequential upload with progress
+  const handleConfirmImport = async () => {
+    if (!importState) return;
+
+    setImportState(prev => prev ? { ...prev, isUploading: true, uploadProgress: 0 } : null);
+
+    const validRows = importState.rows.filter(r => r.parsedData !== null);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < validRows.length; i++) {
+      const row = validRows[i];
+      
+      try {
+        setImportState(prev => {
+          if (!prev) return null;
+          const newRows = [...prev.rows];
+          const rowIndex = newRows.findIndex(r => r.index === row.index);
+          if (rowIndex !== -1) {
+            newRows[rowIndex] = { ...newRows[rowIndex], status: 'uploading' };
+          }
+          return { ...prev, rows: newRows };
+        });
+
+        await createMutation.mutateAsync(row.parsedData!);
+        
+        setImportState(prev => {
+          if (!prev) return null;
+          const newRows = [...prev.rows];
+          const rowIndex = newRows.findIndex(r => r.index === row.index);
+          if (rowIndex !== -1) {
+            newRows[rowIndex] = { ...newRows[rowIndex], status: 'success' };
+          }
+          return { ...prev, rows: newRows, uploadProgress: ((i + 1) / validRows.length) * 100 };
+        });
+        
+        successCount++;
+      } catch (error: any) {
+        setImportState(prev => {
+          if (!prev) return null;
+          const newRows = [...prev.rows];
+          const rowIndex = newRows.findIndex(r => r.index === row.index);
+          if (rowIndex !== -1) {
+            newRows[rowIndex] = { 
+              ...newRows[rowIndex], 
+              status: 'failed',
+              failureReason: error.message || "Upload failed"
+            };
+          }
+          return { ...prev, rows: newRows, uploadProgress: ((i + 1) / validRows.length) * 100 };
+        });
+        failCount++;
+      }
+    }
+
+    setImportState(prev => prev ? { ...prev, isUploading: false, uploadComplete: true } : null);
+
+    toast({
+      title: "Import completed",
+      description: `Successfully uploaded ${successCount} work reports. ${failCount > 0 ? `${failCount} failed.` : ''}`,
+      variant: failCount > 0 ? "destructive" : "default",
+    });
+  };
+
+  // Update a row's data in the import preview
+  const updateImportRow = (rowIndex: number, field: string, value: any) => {
+    if (!importState) return;
+
+    setImportState(prev => {
+      if (!prev) return null;
+      const newRows = [...prev.rows];
+      const row = newRows[rowIndex];
+      
+      if (!row) return prev;
+
+      // Update original data
+      row.originalData = { ...row.originalData, [field]: value };
+
+      // Re-validate
+      const errors: string[] = [];
+      const { date: dateStr, title, hours: hoursStr, status } = row.originalData;
+
+      if (!dateStr) errors.push("Date is required");
+      if (!title) errors.push("Title is required");
+      if (!hoursStr) errors.push("Hours Worked is required");
+
+      let parsedDate: Date | null = null;
+      if (dateStr) {
+        parsedDate = new Date(dateStr);
+        if (isNaN(parsedDate.getTime())) {
+          errors.push("Invalid date format");
+        }
+      }
+
+      let hoursWorked = 0;
+      let hours = "0";
+      let minutes = "0";
+      if (hoursStr) {
+        hoursWorked = parseFloat(hoursStr);
+        if (isNaN(hoursWorked) || hoursWorked <= 0) {
+          errors.push("Hours must be greater than 0");
+        } else {
+          hours = Math.floor(hoursWorked).toString();
+          minutes = Math.round((hoursWorked % 1) * 60).toString();
+        }
+      }
+
+      row.errors = errors;
+
+      if (errors.length === 0) {
+        row.parsedData = {
+          title: row.originalData.title.trim(),
+          description: row.originalData.description.trim(),
+          date: parsedDate!,
+          hours,
+          minutes,
+          hoursWorked: hoursWorked.toString(),
+          status: (row.originalData.status.toLowerCase().trim() || "submitted") as any,
+          userId: row.originalData.userId || currentUser?.id || "",
+        };
+      } else {
+        row.parsedData = null;
+      }
+
+      return { ...prev, rows: newRows };
+    });
+  };
+
+  // Remove a row from import
+  const removeImportRow = (rowIndex: number) => {
+    if (!importState) return;
+    setImportState(prev => {
+      if (!prev) return null;
+      return { ...prev, rows: prev.rows.filter((_, i) => i !== rowIndex) };
+    });
   };
 
   // Get date range based on time period filter
@@ -1339,6 +1529,215 @@ export default function WorkReportsPage() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* CSV Import Review Dialog */}
+        {importState && (
+          <Dialog open={importState.isOpen} onOpenChange={(open) => {
+            if (!open && !importState.isUploading) {
+              setImportState(null);
+            }
+          }}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {importState.uploadComplete ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      Import Complete
+                    </>
+                  ) : importState.isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Uploading Work Reports
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-5 h-5 text-orange-600" />
+                      Review Import Data
+                    </>
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  {importState.uploadComplete ? (
+                    `Upload finished. ${importState.rows.filter(r => r.status === 'success').length} successful, ${importState.rows.filter(r => r.status === 'failed').length} failed.`
+                  ) : importState.isUploading ? (
+                    `Uploading ${importState.rows.filter(r => r.parsedData !== null).length} work reports...`
+                  ) : (
+                    `Review and fix any errors before uploading. ${importState.rows.filter(r => r.errors.length === 0 || (r.errors.length === 1 && r.errors[0].includes("Will use current user"))).length} valid, ${importState.rows.filter(r => r.errors.length > 0 && !r.errors[0].includes("Will use current user")).length} with errors.`
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+
+              {importState.isUploading && (
+                <div className="space-y-2 py-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Progress</span>
+                    <span>{Math.round(importState.uploadProgress)}%</span>
+                  </div>
+                  <Progress value={importState.uploadProgress} className="h-2" />
+                </div>
+              )}
+
+              <ScrollArea className="flex-1 pr-4">
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead className="w-12">Status</TableHead>
+                        <TableHead className="w-32">Date</TableHead>
+                        <TableHead className="min-w-[200px]">Title</TableHead>
+                        <TableHead className="w-24">Hours</TableHead>
+                        <TableHead className="w-24">Status</TableHead>
+                        <TableHead className="min-w-[200px]">Errors</TableHead>
+                        {!importState.isUploading && !importState.uploadComplete && (
+                          <TableHead className="w-20">Actions</TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importState.rows.map((row, index) => (
+                        <TableRow 
+                          key={row.index}
+                          className={cn(
+                            row.status === 'success' && "bg-green-50 dark:bg-green-950",
+                            row.status === 'failed' && "bg-red-50 dark:bg-red-950",
+                            row.status === 'uploading' && "bg-blue-50 dark:bg-blue-950",
+                            row.errors.length > 0 && !row.errors[0].includes("Will use current user") && row.status === 'pending' && "bg-orange-50 dark:bg-orange-950"
+                          )}
+                        >
+                          <TableCell className="font-medium">{row.index}</TableCell>
+                          <TableCell>
+                            {row.status === 'success' && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                            {row.status === 'failed' && <XCircle className="w-4 h-4 text-red-600" />}
+                            {row.status === 'uploading' && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+                            {row.status === 'pending' && row.errors.length > 0 && !row.errors[0].includes("Will use current user") && (
+                              <AlertCircle className="w-4 h-4 text-orange-600" />
+                            )}
+                            {row.status === 'pending' && (row.errors.length === 0 || row.errors[0].includes("Will use current user")) && (
+                              <div className="w-4 h-4 rounded-full bg-green-600" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {importState.isUploading || importState.uploadComplete ? (
+                              <span className="text-sm">{row.originalData.date}</span>
+                            ) : (
+                              <Input
+                                type="date"
+                                value={row.originalData.date}
+                                onChange={(e) => updateImportRow(index, 'date', e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {importState.isUploading || importState.uploadComplete ? (
+                              <span className="text-sm">{row.originalData.title}</span>
+                            ) : (
+                              <Input
+                                value={row.originalData.title}
+                                onChange={(e) => updateImportRow(index, 'title', e.target.value)}
+                                className="h-8 text-sm"
+                                placeholder="Enter title"
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {importState.isUploading || importState.uploadComplete ? (
+                              <span className="text-sm">{row.originalData.hours}</span>
+                            ) : (
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={row.originalData.hours}
+                                onChange={(e) => updateImportRow(index, 'hours', e.target.value)}
+                                className="h-8 text-sm"
+                                placeholder="0.0"
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              row.originalData.status === 'approved' ? 'default' :
+                              row.originalData.status === 'rejected' ? 'destructive' : 'secondary'
+                            } className="text-xs">
+                              {row.originalData.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {row.status === 'failed' && row.failureReason ? (
+                              <span className="text-xs text-red-600">{row.failureReason}</span>
+                            ) : row.errors.length > 0 ? (
+                              <div className="space-y-1">
+                                {row.errors.map((error, i) => (
+                                  <div key={i} className="text-xs text-orange-600">{error}</div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-green-600">Valid</span>
+                            )}
+                          </TableCell>
+                          {!importState.isUploading && !importState.uploadComplete && (
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeImportRow(index)}
+                                className="h-8 w-8 p-0"
+                                data-testid={`button-remove-row-${row.index}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </ScrollArea>
+
+              <DialogFooter className="mt-4">
+                {importState.uploadComplete ? (
+                  <Button
+                    onClick={() => setImportState(null)}
+                    data-testid="button-close-import"
+                  >
+                    Close
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setImportState(null)}
+                      disabled={importState.isUploading}
+                      data-testid="button-cancel-import"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleConfirmImport}
+                      disabled={
+                        importState.isUploading ||
+                        importState.rows.filter(r => r.parsedData !== null).length === 0
+                      }
+                      data-testid="button-confirm-import"
+                    >
+                      {importState.isUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        `Upload ${importState.rows.filter(r => r.parsedData !== null).length} Reports`
+                      )}
+                    </Button>
+                  </>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </Sidebar>
   );
