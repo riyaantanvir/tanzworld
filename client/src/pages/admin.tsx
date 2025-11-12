@@ -2404,12 +2404,12 @@ function AuditLog() {
           
           <div>
             <Label htmlFor="filter-user" className="text-xs">User</Label>
-            <Select value={filters.userId} onValueChange={(value) => handleFilterChange('userId', value)}>
+            <Select value={filters.userId || "all"} onValueChange={(value) => handleFilterChange('userId', value === "all" ? "" : value)}>
               <SelectTrigger id="filter-user" data-testid="select-audit-user">
                 <SelectValue placeholder="All Users" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Users</SelectItem>
+                <SelectItem value="all">All Users</SelectItem>
                 {users?.map(user => (
                   <SelectItem key={user.id} value={user.id.toString()}>{user.username}</SelectItem>
                 ))}
@@ -2419,12 +2419,12 @@ function AuditLog() {
           
           <div>
             <Label htmlFor="filter-entity" className="text-xs">Entity Type</Label>
-            <Select value={filters.entityType} onValueChange={(value) => handleFilterChange('entityType', value)}>
+            <Select value={filters.entityType || "all"} onValueChange={(value) => handleFilterChange('entityType', value === "all" ? "" : value)}>
               <SelectTrigger id="filter-entity" data-testid="select-audit-entity">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {entityTypes.map(type => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
@@ -2434,12 +2434,12 @@ function AuditLog() {
           
           <div>
             <Label htmlFor="filter-action" className="text-xs">Action</Label>
-            <Select value={filters.actionType} onValueChange={(value) => handleFilterChange('actionType', value)}>
+            <Select value={filters.actionType || "all"} onValueChange={(value) => handleFilterChange('actionType', value === "all" ? "" : value)}>
               <SelectTrigger id="filter-action" data-testid="select-audit-action">
                 <SelectValue placeholder="All Actions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Actions</SelectItem>
+                <SelectItem value="all">All Actions</SelectItem>
                 {actionTypes.map(type => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
