@@ -39,6 +39,16 @@ export default function GherDashboard() {
     queryKey: ["/api/gher/tags"],
   });
 
+  // Fetch partner summaries for outstanding capital
+  const { data: partnerSummaries = [] } = useQuery<any[]>({
+    queryKey: ["/api/gher/partner-summary"],
+  });
+
+  // Calculate total outstanding capital from all partners
+  const totalOutstandingCapital = useMemo(() => {
+    return partnerSummaries.reduce((total, summary) => total + (summary.outstanding || 0), 0);
+  }, [partnerSummaries]);
+
   const handleDateFilterChange = (filter: DateFilterType) => {
     setDateFilter(filter);
     const today = new Date();
@@ -257,7 +267,7 @@ export default function GherDashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Total Income</CardTitle>
@@ -291,6 +301,17 @@ export default function GherDashboard() {
                 >
                   ৳{stats.netBalance.toLocaleString()}
                 </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Outstanding Capital</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-semibold text-blue-600 dark:text-blue-400" data-testid="text-outstanding-capital">
+                  ৳{totalOutstandingCapital.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Active capital in business</p>
               </CardContent>
             </Card>
           </div>
