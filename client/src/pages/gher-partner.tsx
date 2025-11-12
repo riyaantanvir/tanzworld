@@ -47,7 +47,9 @@ export default function GherPartner() {
 
   // Fetch capital transactions for selected partner
   const { data: transactions = [] } = useQuery({
-    queryKey: ["/api/gher/capital-transactions", { partnerId: selectedPartnerId }],
+    queryKey: selectedPartnerId 
+      ? [`/api/gher/capital-transactions?partnerId=${selectedPartnerId}`]
+      : ["/api/gher/capital-transactions"],
     enabled: !!selectedPartnerId,
   });
 
@@ -98,7 +100,12 @@ export default function GherPartner() {
       amount: data.amount.toString(),
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/gher/capital-transactions"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/gher/capital-transactions');
+        }
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners/summary"] });
       toast({ title: "Transaction added successfully" });
       handleCloseTransactionDialog();
@@ -109,7 +116,12 @@ export default function GherPartner() {
   const deleteTransactionMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/gher/capital-transactions/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/gher/capital-transactions"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/gher/capital-transactions');
+        }
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners/summary"] });
       toast({ title: "Transaction deleted successfully" });
     },
