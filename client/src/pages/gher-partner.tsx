@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,12 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Pencil, Trash2, Plus, ChevronDown, ChevronRight, DollarSign, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronDown, ChevronRight, DollarSign, TrendingUp, TrendingDown, Wallet, Download, Upload, FileDown } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 
 export default function GherPartner() {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPartnerDialogOpen, setIsPartnerDialogOpen] = useState(false);
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<any>(null);
@@ -198,6 +200,186 @@ export default function GherPartner() {
     }).format(amount);
   };
 
+  const getPartnerName = (partnerId: string) => {
+    const partner = partners.find((p: any) => p.id === partnerId);
+    return partner?.name || "Unknown";
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      // Fetch ALL transactions for export
+      const response = await fetch(`/api/gher/capital-transactions`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        toast({ title: "Failed to fetch transactions for export", variant: "destructive" });
+        return;
+      }
+      const allTransactions = await response.json();
+
+      const csvHeaders = "Partner,Date,Type,Amount (BDT),Notes\n";
+      const csvRows = allTransactions.map((txn: any) => {
+        const partnerName = getPartnerName(txn.partnerId).replace(/,/g, ";");
+        const date = format(new Date(txn.date), "MM/dd/yyyy");
+        const type = txn.type;
+        const amount = parseFloat(txn.amount);
+        const notes = (txn.notes || "").replace(/,/g, ";");
+        return `${partnerName},${date},${type},${amount},${notes}`;
+      }).join("\n");
+
+      const csvContent = csvHeaders + csvRows;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `partner-transactions-${format(new Date(), "yyyy-MM-dd")}.csv`;
+      link.click();
+      toast({ title: "Transactions exported successfully" });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({ title: "Failed to export transactions", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadExample = () => {
+    const exampleCSV = `Partner,Date,Type,Amount (BDT),Notes
+Tanvir,11/12/2025,contribution,50000,Initial investment
+Tanvir,11/13/2025,withdrawal,5000,Cash withdrawal for personal use
+Tanvir,11/14/2025,return,10000,Capital repayment`;
+    
+    const blob = new Blob([exampleCSV], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "capital-transactions-example.csv";
+    link.click();
+    toast({ title: "Example CSV downloaded" });
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split("\n").filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          toast({ title: "Empty CSV file", variant: "destructive" });
+          return;
+        }
+
+        const header = lines[0].toLowerCase();
+        if (!header.includes("partner") || !header.includes("date") || !header.includes("type") || !header.includes("amount")) {
+          toast({ title: "Invalid CSV format. Please use the example format.", variant: "destructive" });
+          return;
+        }
+
+        let successCount = 0;
+        let errorCount = 0;
+        const errors: string[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          const values = line.split(",").map(v => v.trim());
+          if (values.length < 4) {
+            errors.push(`Row ${i + 1}: Not enough columns`);
+            errorCount++;
+            continue;
+          }
+
+          const [partnerName, dateStr, type, amountStr, notes] = values;
+
+          try {
+            // Find partner by name
+            const partner = partners.find((p: any) => 
+              p.name.toLowerCase() === partnerName.toLowerCase()
+            );
+            
+            if (!partner) {
+              errors.push(`Row ${i + 1}: Partner "${partnerName}" not found`);
+              errorCount++;
+              continue;
+            }
+
+            // Parse date
+            const dateParts = dateStr.split("/");
+            let txnDate: Date;
+            
+            if (dateParts.length === 3) {
+              const [month, day, year] = dateParts;
+              txnDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            } else {
+              txnDate = new Date(dateStr);
+            }
+
+            if (isNaN(txnDate.getTime())) {
+              errors.push(`Row ${i + 1}: Invalid date "${dateStr}"`);
+              errorCount++;
+              continue;
+            }
+
+            // Parse amount
+            const amount = parseFloat(amountStr);
+            if (isNaN(amount)) {
+              errors.push(`Row ${i + 1}: Invalid amount "${amountStr}"`);
+              errorCount++;
+              continue;
+            }
+
+            // Validate type
+            const txnType = type.toLowerCase().trim();
+            if (txnType !== "contribution" && txnType !== "return" && txnType !== "withdrawal") {
+              errors.push(`Row ${i + 1}: Invalid type "${type}" (must be "contribution", "return", or "withdrawal")`);
+              errorCount++;
+              continue;
+            }
+
+            const txnData = {
+              partnerId: partner.id,
+              date: txnDate.toISOString().split('T')[0],
+              type: txnType,
+              amount: amount.toString(),
+              notes: notes || "",
+            };
+
+            await createTransactionMutation.mutateAsync(txnData);
+            successCount++;
+          } catch (error: any) {
+            console.error(`Row ${i + 1} error:`, error);
+            errors.push(`Row ${i + 1}: ${error.message || "Unknown error"}`);
+            errorCount++;
+          }
+        }
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        if (errorCount > 0) {
+          toast({
+            title: "Import completed with errors",
+            description: `${successCount} succeeded, ${errorCount} failed. Check console for details.`,
+            variant: "destructive",
+          });
+          console.error("Import errors:", errors);
+        } else {
+          toast({
+            title: "Import successful",
+            description: `${successCount} transactions imported successfully`,
+          });
+        }
+      } catch (error) {
+        console.error("Import error:", error);
+        toast({ title: "Failed to import CSV", variant: "destructive" });
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   return (
     <Sidebar>
       <div className="flex-1 overflow-auto">
@@ -205,7 +387,39 @@ export default function GherPartner() {
           {/* Header */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h1 className="text-2xl font-semibold">Partner Management</h1>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImportCSV}
+                accept=".csv"
+                style={{ display: "none" }}
+                data-testid="input-csv-file"
+              />
+              <Button
+                variant="outline"
+                onClick={handleDownloadExample}
+                data-testid="button-download-example"
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Example CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="button-import-csv"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportCSV}
+                data-testid="button-export-csv"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
               <Button
                 onClick={() => setIsPartnerDialogOpen(true)}
                 data-testid="button-add-partner"
