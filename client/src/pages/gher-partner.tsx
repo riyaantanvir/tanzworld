@@ -25,7 +25,6 @@ export default function GherPartner() {
   const [partnerFormData, setPartnerFormData] = useState({
     name: "",
     phone: "",
-    sharePercentage: "",
   });
   const [transactionFormData, setTransactionFormData] = useState({
     partnerId: "",
@@ -61,10 +60,7 @@ export default function GherPartner() {
 
   // Partner CRUD mutations
   const createPartnerMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/gher/partners", {
-      ...data,
-      sharePercentage: data.sharePercentage.toString(),
-    }),
+    mutationFn: (data: any) => apiRequest("POST", "/api/gher/partners", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners/summary"] });
@@ -76,10 +72,7 @@ export default function GherPartner() {
 
   const updatePartnerMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest("PATCH", `/api/gher/partners/${id}`, {
-        ...data,
-        sharePercentage: data.sharePercentage.toString(),
-      }),
+      apiRequest("PATCH", `/api/gher/partners/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gher/partners/summary"] });
@@ -137,7 +130,7 @@ export default function GherPartner() {
   const handleClosePartnerDialog = () => {
     setIsPartnerDialogOpen(false);
     setEditingPartner(null);
-    setPartnerFormData({ name: "", phone: "", sharePercentage: "" });
+    setPartnerFormData({ name: "", phone: "" });
   };
 
   const handleCloseTransactionDialog = () => {
@@ -156,7 +149,6 @@ export default function GherPartner() {
     setPartnerFormData({
       name: partner.name,
       phone: partner.phone,
-      sharePercentage: partner.sharePercentage || "",
     });
     setIsPartnerDialogOpen(true);
   };
@@ -680,19 +672,6 @@ Tanvir,11/14/2025,return,10000,Capital repayment`;
                 onChange={(e) => setPartnerFormData({ ...partnerFormData, phone: e.target.value })}
                 required
                 data-testid="input-partner-phone"
-              />
-            </div>
-            <div>
-              <Label>Share Percentage (%)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                value={partnerFormData.sharePercentage}
-                onChange={(e) => setPartnerFormData({ ...partnerFormData, sharePercentage: e.target.value })}
-                required
-                data-testid="input-partner-share"
               />
             </div>
             <div className="flex gap-2">
