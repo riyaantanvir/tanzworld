@@ -2372,7 +2372,34 @@ function AuditLog() {
   };
 
   const entityTypes = ['entry', 'partner', 'tag', 'invoice'];
-  const actionTypes = ['created', 'updated', 'deleted', 'generated_invoice', 'deleted_invoice'];
+  const actionTypes = [
+    { value: 'created', label: 'Created' },
+    { value: 'updated', label: 'Updated' },
+    { value: 'deleted', label: 'Deleted' },
+    { value: 'generated_invoice', label: 'Generated Invoice' },
+    { value: 'deleted_invoice', label: 'Deleted Invoice' },
+  ];
+  
+  // Format description to show meaningful information
+  const formatDescription = (log: any) => {
+    if (!log.description && !log.changeSummary) return 'No description';
+    
+    // If we have a description, use it
+    if (log.description) {
+      // Make it more readable
+      const action = log.actionType.replace('_', ' ');
+      const entity = log.entityType;
+      return `${action.charAt(0).toUpperCase() + action.slice(1)}: ${log.description}`;
+    }
+    
+    // Otherwise, generate from change summary
+    if (log.changeSummary && Object.keys(log.changeSummary).length > 0) {
+      const changes = Object.entries(log.changeSummary).slice(0, 2).map(([key, _]) => key).join(', ');
+      return `Modified ${changes}${Object.keys(log.changeSummary).length > 2 ? `, +${Object.keys(log.changeSummary).length - 2} more` : ''}`;
+    }
+    
+    return 'No details available';
+  };
 
   return (
     <Card>
@@ -2448,7 +2475,7 @@ function AuditLog() {
               <SelectContent>
                 <SelectItem value="all">All Actions</SelectItem>
                 {actionTypes.map(type => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                  <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -2514,7 +2541,7 @@ function AuditLog() {
                         <TableCell>
                           <Badge variant="outline">{log.entityType}</Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{log.description}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDescription(log)}</TableCell>
                       </TableRow>
                       
                       {expandedRow === log.id && (
@@ -2560,7 +2587,7 @@ function AuditLog() {
 
             <div className="flex items-center justify-between pt-4">
               <div className="text-sm text-muted-foreground">
-                Page {page} of {totalPages} ({auditData?.pagination?.total || 0} total events)
+                Page {page} of {totalPages} ({auditData?.total || 0} total events)
               </div>
               <div className="flex gap-2">
                 <Button
