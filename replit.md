@@ -36,6 +36,11 @@ Preferred communication style: Simple, everyday language.
   - Nov 12, 2025: Added partner management schema with `share_percentage` field to gher_partners, created `gher_capital_transactions` table for tracking partner contributions/withdrawals/returns, and settlement tracking tables (`gher_settlements`, `gher_settlement_items`) with CHECK constraints ensuring capital balances remain non-negative.
   - Nov 12, 2025: Manually added `share_percentage` column to `gher_partners` table via SQL (ALTER TABLE gher_partners ADD COLUMN IF NOT EXISTS share_percentage DECIMAL(5,2) NOT NULL DEFAULT 33.33) to resolve partner creation errors. Column was defined in schema but missing from database, causing "column does not exist" errors during partner CRUD operations.
   - Nov 12, 2025: Created missing partner management tables (`gher_capital_transactions`, `gher_settlements`, `gher_settlement_items`) using CREATE TABLE statements. These tables were defined in schema but missing from database, causing errors in partner summary queries. Tables created with proper foreign key references and CHECK constraints.
+  - Nov 13, 2025: Fixed invoice preview and generation functionality by:
+    1. Creating missing `gher_invoices` table with all required columns (invoice_number, month, year_month, totals, tags, partner movements, etc.)
+    2. Creating missing `gher_invoice_sequences` table for auto-incrementing invoice numbers (year_month, last_sequence, updated_at)
+    3. Reinstalling missing `luxon` package (was in package.json but not in node_modules) via npm install to fix "Cannot find package 'luxon'" error
+    4. All issues prevented invoice preview/generation APIs from working (returned 500 errors)
 
 ## Authentication & Authorization
 - **Strategy**: Bearer token authentication stored in localStorage.
