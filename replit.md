@@ -39,8 +39,9 @@ Preferred communication style: Simple, everyday language.
   - Nov 13, 2025: Fixed invoice preview and generation functionality by:
     1. Creating missing `gher_invoices` table with all required columns (invoice_number, month, year_month, totals, tags, partner movements, etc.)
     2. Creating missing `gher_invoice_sequences` table for auto-incrementing invoice numbers (year_month, last_sequence, updated_at)
-    3. Reinstalling missing `luxon` package (was in package.json but not in node_modules) via npm install to fix "Cannot find package 'luxon'" error
-    4. All issues prevented invoice preview/generation APIs from working (returned 500 errors)
+    3. Creating missing `gher_audit_logs` table with indexes for tracking all Gher operations (user_id, action_type, entity_type, change_summary, etc.)
+    4. Reinstalling missing `luxon` package (was in package.json but not in node_modules) via npm install to fix "Cannot find package 'luxon'" error
+    5. All issues prevented invoice preview/generation APIs from working (returned 500 errors)
 
 ## Authentication & Authorization
 - **Strategy**: Bearer token authentication stored in localStorage.
