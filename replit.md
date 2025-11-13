@@ -43,11 +43,12 @@ Preferred communication style: Simple, everyday language.
     4. Reinstalling missing `luxon` package (was in package.json but not in node_modules) via npm install to fix "Cannot find package 'luxon'" error
     5. All issues prevented invoice preview/generation APIs from working (returned 500 errors)
   - Nov 13, 2025: Fixed PDF Bengali font rendering issue:
-    1. Downloaded Google Noto Sans Bengali font (NotoSansBengali-Regular.ttf) to server/fonts/
-    2. Registered Bengali font in PDF generation code using pdfkit's registerFont() API
-    3. Updated PDF rendering to use Bengali font for tag names and notes (supports Bengali characters)
-    4. English text (headers, numbers, labels) continues to use Helvetica font
-    5. Bengali text now displays correctly instead of showing garbled characters (™Ý½„™Ý¾)
+    1. Downloaded Google Noto Sans Bengali font (NotoSansBengali-Regular.ttf) to server/fonts/ from Google Fonts repository
+    2. Fixed initial download issue where HTML page was downloaded instead of actual TTF file (re-downloaded from correct raw GitHub URL)
+    3. Registered Bengali font in PDF generation code using pdfkit's registerFont() API
+    4. Updated PDF rendering to use Bengali font for tag names and notes (supports Bengali characters)
+    5. English text (headers, numbers, labels) continues to use Helvetica font
+    6. Bengali text now displays correctly instead of showing garbled characters (™Ý½„™Ý¾)
 
 ## Authentication & Authorization
 - **Strategy**: Bearer token authentication stored in localStorage.
