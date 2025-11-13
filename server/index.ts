@@ -38,14 +38,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Validate encryption setup at startup if ENCRYPTION_KEY is set
-  // If not set, farming accounts feature will require it when first used
-  try {
-    validateEncryptionSetup();
-    log("✓ Encryption setup validated");
-  } catch (error: any) {
-    log("⚠ Encryption not configured - farming accounts feature will be disabled");
-    log(`  To enable: Set ENCRYPTION_KEY environment variable (generate with: openssl rand -base64 32)`);
+  // In development, validate encryption setup at startup
+  // In production, skip to ensure fast startup (lazy loading)
+  if (app.get("env") === "development") {
+    try {
+      validateEncryptionSetup();
+      log("✓ Encryption setup validated");
+    } catch (error: any) {
+      log("⚠ Encryption not configured - farming accounts feature will be disabled");
+      log(`  To enable: Set ENCRYPTION_KEY environment variable (generate with: openssl rand -base64 32)`);
+    }
   }
 
   const server = await registerRoutes(app);
@@ -72,11 +74,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
 })();

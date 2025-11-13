@@ -2,6 +2,27 @@
 
 Advantix Admin is a full-stack web application designed to streamline digital advertising campaign management. It provides tools for campaign creation (including Facebook Ads integration), client tracking, financial management (with automated salary generation and a robust Gher Management module for fish farming financial tracking), and detailed work reporting. The platform features an advanced admin dashboard, a modern authentication system, and a comprehensive UI component library, aiming to enhance operational efficiency for marketing agencies. It also includes a manual email composer with professional templates for client communication.
 
+# Recent Changes
+
+## Nov 13, 2025: Database Schema Fixes
+- Fixed user creation by adding missing `gher_invoices` column to `user_menu_permissions` table via SQL ALTER TABLE
+- Column was defined in shared/schema.ts but missing from database, causing 500 errors when creating users or toggling permissions
+- User creation now works correctly with all permission fields including Gher Invoices
+
+## Nov 13, 2025: Cloud Run Deployment Fixes
+- **Removed `reusePort` option** from server.listen() configuration (not supported in Cloud Run)
+- **Optimized startup performance** by making encryption validation lazy - only runs in development mode
+- **Confirmed PORT environment variable** is correctly used (dynamically assigned by Cloud Run)
+- Application now properly listens on the PORT environment variable for deployments
+- Startup time improved by deferring non-critical validation to runtime
+
+## Nov 13, 2025: PDF Bengali Font Rendering
+- Downloaded Google Noto Sans Bengali font (NotoSansBengali-Regular.ttf) to server/fonts/ directory
+- Fixed font download issue (was downloading HTML page instead of TTF file)
+- Registered Bengali font in PDF generation using pdfkit's registerFont() API
+- Bengali text (tag names, descriptions) now renders correctly in invoice PDFs
+- English content (headers, numbers, labels) uses Helvetica font
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
