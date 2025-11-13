@@ -5964,11 +5964,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const PDFDocument = (await import('pdfkit')).default;
+      const path = await import('path');
       const doc = new PDFDocument({ 
         margin: 36,
         size: 'A4',
         bufferPages: true
       });
+      
+      // Register Bengali font for proper rendering
+      const bengaliFontPath = path.resolve(process.cwd(), 'server/fonts/NotoSansBengali-Regular.ttf');
+      doc.registerFont('Bengali', bengaliFontPath);
       
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.pdf"`);
@@ -6064,9 +6069,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const bgColor = index % 2 === 0 ? '#f9fafb' : '#ffffff';
             doc.rect(leftMargin, rowY, pageWidth, 18).fill(bgColor);
             
-            doc.fillColor('#000000').fontSize(9)
+            // Use Bengali font for tag names (supports Bengali text)
+            doc.fillColor('#000000').fontSize(9).font('Bengali')
               .text(tag.tagName, leftMargin + 8, rowY + 5, { width: pageWidth * 0.5 - 8 });
-            doc.text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
+            // Switch back to Helvetica for numbers
+            doc.font('Helvetica')
+              .text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
             doc.text(`${tag.percentage}%`, leftMargin + pageWidth * 0.75, rowY + 5, { width: pageWidth * 0.25 - 8, align: 'right' });
             currentY += 18;
           });
@@ -6100,9 +6108,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const bgColor = index % 2 === 0 ? '#fef2f2' : '#ffffff';
             doc.rect(leftMargin, rowY, pageWidth, 18).fill(bgColor);
             
-            doc.fillColor('#000000').fontSize(9)
+            // Use Bengali font for tag names (supports Bengali text)
+            doc.fillColor('#000000').fontSize(9).font('Bengali')
               .text(tag.tagName, leftMargin + 8, rowY + 5, { width: pageWidth * 0.5 - 8 });
-            doc.text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
+            // Switch back to Helvetica for numbers
+            doc.font('Helvetica')
+              .text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
             doc.text(`${tag.percentage}%`, leftMargin + pageWidth * 0.75, rowY + 5, { width: pageWidth * 0.25 - 8, align: 'right' });
             currentY += 18;
           });
@@ -6119,7 +6130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .text('Additional Notes', leftMargin, currentY);
         currentY += 18;
         
-        doc.fontSize(9).font('Helvetica').fillColor('#374151')
+        // Use Bengali font for notes to support Bengali text
+        doc.fontSize(9).font('Bengali').fillColor('#374151')
           .text(invoice.notes, leftMargin, currentY, { width: pageWidth, align: 'justify' });
         currentY += 30;
       }
