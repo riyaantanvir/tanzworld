@@ -6046,82 +6046,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       currentY = summaryBoxY + 100;
       
-      // ===== INCOME BREAKDOWN =====
-      if (invoice.topIncomeTags) {
-        const incomeTags = JSON.parse(invoice.topIncomeTags);
-        if (incomeTags.length > 0) {
-          doc.fontSize(14).fillColor('#000000').font('Helvetica-Bold')
-            .text('Income Breakdown', leftMargin, currentY);
-          currentY += 22;
-          
-          // Table header
-          doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
-            .rect(leftMargin, currentY, pageWidth, 20).fill('#2563eb');
-          doc.text('Category', leftMargin + 8, currentY + 6, { width: pageWidth * 0.5 - 8 });
-          doc.text('Amount (BDT)', leftMargin + pageWidth * 0.5, currentY + 6, { width: pageWidth * 0.25, align: 'right' });
-          doc.text('Share', leftMargin + pageWidth * 0.75, currentY + 6, { width: pageWidth * 0.25 - 8, align: 'right' });
-          currentY += 20;
-          
-          // Table rows
-          doc.fillColor('#000000').font('Helvetica');
-          incomeTags.forEach((tag: any, index: number) => {
-            const rowY = currentY;
-            const bgColor = index % 2 === 0 ? '#f9fafb' : '#ffffff';
-            doc.rect(leftMargin, rowY, pageWidth, 18).fill(bgColor);
-            
-            // Use Bengali font for tag names (supports Bengali text)
-            doc.fillColor('#000000').fontSize(9).font('Bengali')
-              .text(tag.tagName, leftMargin + 8, rowY + 5, { width: pageWidth * 0.5 - 8 });
-            // Switch back to Helvetica for numbers
-            doc.font('Helvetica')
-              .text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
-            doc.text(`${tag.percentage}%`, leftMargin + pageWidth * 0.75, rowY + 5, { width: pageWidth * 0.25 - 8, align: 'right' });
-            currentY += 18;
-          });
-          
-          doc.strokeColor('#e5e7eb').lineWidth(1)
-            .rect(leftMargin, currentY - (incomeTags.length * 18) - 20, pageWidth, (incomeTags.length * 18) + 20).stroke();
-          currentY += 20;
+      // Fetch detailed entries grouped by tag
+      const { incomeByTag, expenseByTag } = await storage.getInvoiceEntriesGroupedByTag(invoice.id);
+      
+      // Helper to check if we need a new page
+      const checkPageBreak = (neededSpace: number) => {
+        if (currentY + neededSpace > doc.page.height - 80) {
+          doc.addPage();
+          currentY = 36;
+          return true;
         }
+        return false;
+      };
+      
+      // Helper to render entry detail table
+      const renderEntryTable = (entries: any[], headerColor: string, rowBgColor1: string, rowBgColor2: string) => {
+        const colDateWidth = pageWidth * 0.20;
+        const colDetailsWidth = pageWidth * 0.55;
+        const colAmountWidth = pageWidth * 0.25;
+        const rowHeight = 16;
+        
+        // Table header
+        checkPageBreak(rowHeight + 10);
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+          .rect(leftMargin, currentY, pageWidth, rowHeight).fill(headerColor);
+        doc.text('Date', leftMargin + 4, currentY + 4, { width: colDateWidth - 8 });
+        doc.text('Details', leftMargin + colDateWidth + 4, currentY + 4, { width: colDetailsWidth - 8 });
+        doc.text('Amount', leftMargin + colDateWidth + colDetailsWidth, currentY + 4, { width: colAmountWidth - 4, align: 'right' });
+        currentY += rowHeight;
+        
+        // Table rows
+        let subtotal = 0;
+        entries.forEach((entry, index) => {
+          checkPageBreak(rowHeight);
+          
+          const bgColor = index % 2 === 0 ? rowBgColor1 : rowBgColor2;
+          doc.rect(leftMargin, currentY, pageWidth, rowHeight).fill(bgColor);
+          
+          const amount = parseFloat(entry.amount);
+          subtotal += amount;
+          
+          // Date (Helvetica)
+          doc.fillColor('#000000').fontSize(8).font('Helvetica')
+            .text(new Date(entry.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }), 
+              leftMargin + 4, currentY + 4, { width: colDateWidth - 8 });
+          
+          // Details (Bengali font for Bengali text support)
+          doc.font('Bengali').fontSize(8)
+            .text(entry.details || '-', leftMargin + colDateWidth + 4, currentY + 4, { 
+              width: colDetailsWidth - 8,
+              ellipsis: true
+            });
+          
+          // Amount (Helvetica)
+          doc.font('Helvetica')
+            .text(formatBDT(amount), leftMargin + colDateWidth + colDetailsWidth, currentY + 4, { 
+              width: colAmountWidth - 4, 
+              align: 'right' 
+            });
+          
+          currentY += rowHeight;
+        });
+        
+        // Subtotal row
+        checkPageBreak(rowHeight + 5);
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#000000');
+        doc.text('Subtotal:', leftMargin + colDateWidth + 4, currentY + 4, { width: colDetailsWidth - 8, align: 'right' });
+        doc.text(formatBDT(subtotal), leftMargin + colDateWidth + colDetailsWidth, currentY + 4, { width: colAmountWidth - 4, align: 'right' });
+        currentY += rowHeight + 5;
+        
+        return subtotal;
+      };
+      
+      // ===== INCOME BREAKDOWN =====
+      if (incomeByTag.size > 0) {
+        checkPageBreak(40);
+        doc.fontSize(14).fillColor('#000000').font('Helvetica-Bold')
+          .text('Income Breakdown', leftMargin, currentY);
+        currentY += 25;
+        
+        // For each income tag, show detailed entries
+        Array.from(incomeByTag.entries()).forEach(([tagKey, tagData]) => {
+          checkPageBreak(60);
+          
+          // Tag header with total
+          const tagTotal = tagData.entries.reduce((sum: number, e: any) => sum + parseFloat(e.amount), 0);
+          const tagPercentage = totalIncome > 0 ? ((tagTotal / totalIncome) * 100).toFixed(1) : '0.0';
+          
+          doc.fontSize(11).font('Bengali').fillColor('#2563eb')
+            .text(`${tagData.tagName} (${formatBDT(tagTotal)} - ${tagPercentage}%)`, leftMargin, currentY);
+          currentY += 18;
+          
+          // Render detailed entry table
+          renderEntryTable(tagData.entries, '#2563eb', '#eff6ff', '#ffffff');
+          currentY += 10;
+        });
       }
       
       // ===== EXPENSE BREAKDOWN =====
-      if (invoice.topExpenseTags) {
-        const expenseTags = JSON.parse(invoice.topExpenseTags);
-        if (expenseTags.length > 0) {
-          doc.fontSize(14).fillColor('#000000').font('Helvetica-Bold')
-            .text('Expense Breakdown', leftMargin, currentY);
-          currentY += 22;
+      if (expenseByTag.size > 0) {
+        checkPageBreak(40);
+        doc.fontSize(14).fillColor('#000000').font('Helvetica-Bold')
+          .text('Expense Breakdown', leftMargin, currentY);
+        currentY += 25;
+        
+        // For each expense tag, show detailed entries
+        Array.from(expenseByTag.entries()).forEach(([tagKey, tagData]) => {
+          checkPageBreak(60);
           
-          // Table header
-          doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
-            .rect(leftMargin, currentY, pageWidth, 20).fill('#dc2626');
-          doc.text('Category', leftMargin + 8, currentY + 6, { width: pageWidth * 0.5 - 8 });
-          doc.text('Amount (BDT)', leftMargin + pageWidth * 0.5, currentY + 6, { width: pageWidth * 0.25, align: 'right' });
-          doc.text('Share', leftMargin + pageWidth * 0.75, currentY + 6, { width: pageWidth * 0.25 - 8, align: 'right' });
-          currentY += 20;
+          // Tag header with total
+          const tagTotal = tagData.entries.reduce((sum: number, e: any) => sum + parseFloat(e.amount), 0);
+          const tagPercentage = totalExpense > 0 ? ((tagTotal / totalExpense) * 100).toFixed(1) : '0.0';
           
-          // Table rows
-          doc.fillColor('#000000').font('Helvetica');
-          expenseTags.forEach((tag: any, index: number) => {
-            const rowY = currentY;
-            const bgColor = index % 2 === 0 ? '#fef2f2' : '#ffffff';
-            doc.rect(leftMargin, rowY, pageWidth, 18).fill(bgColor);
-            
-            // Use Bengali font for tag names (supports Bengali text)
-            doc.fillColor('#000000').fontSize(9).font('Bengali')
-              .text(tag.tagName, leftMargin + 8, rowY + 5, { width: pageWidth * 0.5 - 8 });
-            // Switch back to Helvetica for numbers
-            doc.font('Helvetica')
-              .text(formatBDT(tag.amount), leftMargin + pageWidth * 0.5, rowY + 5, { width: pageWidth * 0.25, align: 'right' });
-            doc.text(`${tag.percentage}%`, leftMargin + pageWidth * 0.75, rowY + 5, { width: pageWidth * 0.25 - 8, align: 'right' });
-            currentY += 18;
-          });
+          doc.fontSize(11).font('Bengali').fillColor('#dc2626')
+            .text(`${tagData.tagName} (${formatBDT(tagTotal)} - ${tagPercentage}%)`, leftMargin, currentY);
+          currentY += 18;
           
-          doc.strokeColor('#e5e7eb').lineWidth(1)
-            .rect(leftMargin, currentY - (expenseTags.length * 18) - 20, pageWidth, (expenseTags.length * 18) + 20).stroke();
-          currentY += 20;
-        }
+          // Render detailed entry table
+          renderEntryTable(tagData.entries, '#dc2626', '#fef2f2', '#ffffff');
+          currentY += 10;
+        });
       }
       
       // ===== NOTES SECTION =====

@@ -3231,6 +3231,72 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getInvoiceEntriesGroupedByTag(invoiceId: string): Promise<{
+    incomeByTag: Map<string, { tagName: string; entries: any[] }>;
+    expenseByTag: Map<string, { tagName: string; entries: any[] }>;
+  }> {
+    try {
+      const invoice = await this.getInvoice(invoiceId);
+      if (!invoice) {
+        throw new Error("Invoice not found");
+      }
+
+      const { DateTime } = await import('luxon');
+      const startOfMonth = DateTime.fromISO(`${invoice.yearMonth}-01`, { zone: 'Asia/Dhaka' }).startOf('day');
+      const endOfMonth = startOfMonth.plus({ months: 1 });
+      
+      const startDate = startOfMonth.toJSDate();
+      const endDate = endOfMonth.toJSDate();
+
+      // Fetch all entries and tags for the invoice period
+      const entries = await db
+        .select({
+          id: gherEntries.id,
+          date: gherEntries.date,
+          type: gherEntries.type,
+          amount: gherEntries.amount,
+          details: gherEntries.details,
+          tagId: gherEntries.tagId,
+          tagName: gherTags.name,
+        })
+        .from(gherEntries)
+        .leftJoin(gherTags, eq(gherEntries.tagId, gherTags.id))
+        .where(
+          and(
+            gte(gherEntries.date, startDate),
+            lt(gherEntries.date, endDate)
+          )
+        )
+        .orderBy(gherEntries.date, gherEntries.createdAt);
+
+      // Group entries by tag and type
+      const incomeByTag = new Map<string, { tagName: string; entries: any[] }>();
+      const expenseByTag = new Map<string, { tagName: string; entries: any[] }>();
+
+      entries.forEach(entry => {
+        const tagKey = entry.tagId || 'untagged';
+        const tagName = entry.tagName || 'Untagged';
+        
+        if (entry.type === 'income') {
+          if (!incomeByTag.has(tagKey)) {
+            incomeByTag.set(tagKey, { tagName, entries: [] });
+          }
+          incomeByTag.get(tagKey)!.entries.push(entry);
+        } else if (entry.type === 'expense') {
+          if (!expenseByTag.has(tagKey)) {
+            expenseByTag.set(tagKey, { tagName, entries: [] });
+          }
+          expenseByTag.get(tagKey)!.entries.push(entry);
+        }
+      });
+
+      return { incomeByTag, expenseByTag };
+    } catch (error) {
+      console.error("[DB ERROR] Failed to get invoice entries grouped by tag:", error);
+      throw error;
+    }
+  }
+
   async logGherAuditEntry(event: InsertGherAuditLog): Promise<void> {
     try {
       await db.insert(gherAuditLogs).values(event);
