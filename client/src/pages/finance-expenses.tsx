@@ -12,14 +12,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertFinanceExpenseSchema, type FinanceExpense, type FinanceProject, type InsertFinanceExpense, type Employee } from "@shared/schema";
-import { Plus, Edit, Trash2, MoreHorizontal, DollarSign, Calendar, Building, Calculator, TrendingDown, Upload, FileSpreadsheet, Eye, CheckCircle, Download } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, DollarSign, Calendar, Building, Calculator, TrendingDown, Upload, FileSpreadsheet, Eye, CheckCircle, Download, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { formatDistance } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
+import Papa from "papaparse";
 
 export default function FinanceExpenses() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -29,6 +32,19 @@ export default function FinanceExpenses() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<any>(null);
   const [isPreviewStep, setIsPreviewStep] = useState(false);
+  const [parsedRows, setParsedRows] = useState<Array<{
+    rowNumber: number;
+    data: any;
+    isValid: boolean;
+    errors: string[];
+    status: 'pending' | 'uploading' | 'success' | 'failed';
+  }>>([]);
+  const [uploadProgress, setUploadProgress] = useState({
+    current: 0,
+    total: 0,
+    successCount: 0,
+    errorCount: 0,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -156,97 +172,6 @@ export default function FinanceExpenses() {
     },
   });
 
-  // CSV Preview mutation (Step 1)
-  const previewCsvMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('csvFile', file);
-      
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-      
-      const response = await fetch('/api/finance/expenses/import-csv/preview', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Preview failed');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (result) => {
-      setPreviewData(result);
-      setIsPreviewStep(true);
-      toast({
-        title: "Preview Ready",
-        description: `${result.validCount} valid records found. Review and confirm to import.`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to preview CSV file.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // CSV Confirm mutation (Step 2)
-  const confirmCsvMutation = useMutation({
-    mutationFn: async (validRecords: any[]) => {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-      
-      const response = await fetch('/api/finance/expenses/import-csv/confirm', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ validRecords }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Import failed');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/finance/expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/finance/dashboard"] });
-      setIsImportDialogOpen(false);
-      setCsvFile(null);
-      setPreviewData(null);
-      setIsPreviewStep(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      toast({
-        title: "Success",
-        description: `${result.imported} expenses imported successfully!`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to import expenses.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const onSubmit = (data: InsertFinanceExpense) => {
     // Convert "none" to null for the API
     const submitData = {
@@ -277,21 +202,184 @@ export default function FinanceExpenses() {
     }
   };
 
-  const handlePreviewCsv = () => {
-    if (csvFile) {
-      previewCsvMutation.mutate(csvFile);
-    }
+  const handlePreviewCsv = async () => {
+    if (!csvFile) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+
+      // Parse CSV using Papaparse
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.toLowerCase().trim(),
+        complete: (results) => {
+          if (!results.data || results.data.length === 0) {
+            toast({
+              title: "Error",
+              description: "CSV file is empty",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Check for required columns
+          const headers = results.meta.fields || [];
+          const requiredFields = ['type', 'amount', 'currency', 'date'];
+          const missingFields = requiredFields.filter(field => 
+            !headers.some(h => h.toLowerCase() === field)
+          );
+          
+          if (missingFields.length > 0) {
+            toast({
+              title: "Invalid CSV Format",
+              description: `Missing required columns: ${missingFields.join(', ')}`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Parse and validate each row
+          const rows = results.data.map((row: any, index: number) => {
+            const errors: string[] = [];
+            
+            const type = (row.type || '').trim();
+            const amount = (row.amount || '').trim();
+            const currency = (row.currency || '').trim();
+            const date = (row.date || '').trim();
+            const notes = (row.notes || '').trim();
+            const projectId = (row.projectid || row.projectId || '').trim();
+
+            // Validate type
+            if (!type || (type !== 'expense' && type !== 'salary')) {
+              errors.push(`Invalid type "${type}" (must be "expense" or "salary")`);
+            }
+
+            // Validate amount
+            const amountNum = parseFloat(amount);
+            if (!amount || isNaN(amountNum) || amountNum <= 0) {
+              errors.push(`Invalid amount "${amount}"`);
+            }
+
+            // Validate currency
+            if (!currency || (currency !== 'USD' && currency !== 'BDT')) {
+              errors.push(`Invalid currency "${currency}" (must be "USD" or "BDT")`);
+            }
+
+            // Validate date
+            const dateObj = new Date(date);
+            if (!date || isNaN(dateObj.getTime())) {
+              errors.push(`Invalid date "${date}" (use YYYY-MM-DD format)`);
+            }
+
+            return {
+              rowNumber: index + 2, // +2 because index starts at 0 and we skip header
+              data: { type, amount, currency, date, notes, projectId: projectId || null },
+              isValid: errors.length === 0,
+              errors,
+              status: 'pending' as const,
+            };
+          });
+
+          setParsedRows(rows);
+          setIsPreviewStep(true);
+
+          const validCount = rows.filter(r => r.isValid).length;
+          const errorCount = rows.filter(r => !r.isValid).length;
+
+          toast({
+            title: "Preview Ready",
+            description: `${validCount} valid records, ${errorCount} with errors`,
+          });
+        },
+        error: (error: any) => {
+          toast({
+            title: "CSV Parse Error",
+            description: error.message || "Failed to parse CSV file",
+            variant: "destructive",
+          });
+        }
+      });
+    };
+
+    reader.readAsText(csvFile);
   };
 
-  const handleConfirmImport = () => {
-    if (previewData?.validRecords) {
-      confirmCsvMutation.mutate(previewData.validRecords);
+  const handleConfirmImport = async () => {
+    const validRows = parsedRows.filter(r => r.isValid);
+    if (validRows.length === 0) {
+      toast({
+        title: "No Valid Rows",
+        description: "Please fix errors before importing",
+        variant: "destructive",
+      });
+      return;
     }
+
+    setUploadProgress({
+      current: 0,
+      total: validRows.length,
+      successCount: 0,
+      errorCount: 0,
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < validRows.length; i++) {
+      const row = validRows[i];
+      
+      // Update row status to uploading
+      setParsedRows(prev => prev.map(r => 
+        r.rowNumber === row.rowNumber ? { ...r, status: 'uploading' as const } : r
+      ));
+
+      try {
+        const response = await apiRequest("POST", "/api/finance/expenses", {
+          ...row.data,
+          date: new Date(row.data.date),
+          amount: parseFloat(row.data.amount),
+        });
+
+        await response.json();
+        
+        successCount++;
+        setParsedRows(prev => prev.map(r => 
+          r.rowNumber === row.rowNumber ? { ...r, status: 'success' as const } : r
+        ));
+      } catch (error) {
+        errorCount++;
+        setParsedRows(prev => prev.map(r => 
+          r.rowNumber === row.rowNumber ? { ...r, status: 'failed' as const } : r
+        ));
+      }
+
+      setUploadProgress({
+        current: i + 1,
+        total: validRows.length,
+        successCount,
+        errorCount,
+      });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["/api/finance/expenses"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/finance/dashboard"] });
+
+    toast({
+      title: "Import Complete",
+      description: `Successfully imported ${successCount} records${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+    });
   };
 
   const handleBackToUpload = () => {
     setIsPreviewStep(false);
-    setPreviewData(null);
+    setParsedRows([]);
+    setUploadProgress({ current: 0, total: 0, successCount: 0, errorCount: 0 });
+  };
+
+  const handleRemoveRow = (rowNumber: number) => {
+    setParsedRows(prev => prev.filter(r => r.rowNumber !== rowNumber));
   };
 
   const handleEdit = (expense: FinanceExpense) => {
@@ -474,7 +562,7 @@ export default function FinanceExpenses() {
                 Import CSV
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px]">
+            <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {isPreviewStep ? "Review CSV Import Data" : "Import Expenses from CSV"}
@@ -486,70 +574,211 @@ export default function FinanceExpenses() {
                   }
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
-                  <div className="text-center">
-                    <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="mt-4">
-                      <label htmlFor="csv-upload" className="cursor-pointer">
-                        <span className="mt-2 block text-sm font-medium text-gray-900 dark:text-white">
-                          {csvFile ? csvFile.name : "Choose CSV file"}
-                        </span>
-                      </label>
-                      <input
-                        id="csv-upload"
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".csv"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
+              {!isPreviewStep ? (
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6">
+                    <div className="text-center">
+                      <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="mt-4">
+                        <label htmlFor="csv-upload" className="cursor-pointer">
+                          <span className="mt-2 block text-sm font-medium text-gray-900 dark:text-white">
+                            {csvFile ? csvFile.name : "Choose CSV file"}
+                          </span>
+                        </label>
+                        <input
+                          id="csv-upload"
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".csv"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        CSV files only
+                      </p>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      CSV files only
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h4 className="font-medium text-sm mb-2">Required CSV Format:</h4>
+                    <code className="text-xs bg-white dark:bg-gray-900 p-2 rounded block">
+                      type,amount,currency,date,notes,projectId
+                      <br />
+                      expense,1500,BDT,2025-01-15,Office supplies,
+                      <br />
+                      salary,50000,BDT,2025-01-15,Monthly salary,project-id
+                    </code>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                      • type: "expense" or "salary"<br />
+                      • amount: numeric value<br />
+                      • currency: "USD" or "BDT"<br />
+                      • date: YYYY-MM-DD format<br />
+                      • notes: description (optional)<br />
+                      • projectId: project ID or empty for general
                     </p>
                   </div>
-                </div>
-                
-                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2">Required CSV Format:</h4>
-                  <code className="text-xs bg-white dark:bg-gray-900 p-2 rounded block">
-                    type,amount,currency,date,notes,projectId
-                    <br />
-                    expense,1500,BDT,2025-01-15,Office supplies,
-                    <br />
-                    salary,50000,BDT,2025-01-15,Monthly salary,project-id
-                  </code>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                    • type: "expense" or "salary"<br />
-                    • amount: numeric value<br />
-                    • currency: "USD" or "BDT"<br />
-                    • date: YYYY-MM-DD format<br />
-                    • notes: description (optional)<br />
-                    • projectId: project ID or empty for general
-                  </p>
-                </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => {
-                    setIsImportDialogOpen(false);
-                    setCsvFile(null);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handlePreviewCsv}
-                    disabled={!csvFile || previewCsvMutation.isPending}
-                    data-testid="button-preview-csv"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    {previewCsvMutation.isPending ? "Loading..." : "Preview Data"}
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => {
+                      setIsImportDialogOpen(false);
+                      setCsvFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handlePreviewCsv}
+                      disabled={!csvFile}
+                      data-testid="button-preview-csv"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview Data
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{parsedRows.length}</div>
+                          <div className="text-xs text-muted-foreground">Total Rows</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">{parsedRows.filter(r => r.isValid).length}</div>
+                          <div className="text-xs text-muted-foreground">Valid</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-red-600">{parsedRows.filter(r => !r.isValid).length}</div>
+                          <div className="text-xs text-muted-foreground">With Errors</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Upload Progress */}
+                  {uploadProgress.total > 0 && (
+                    <Card>
+                      <CardContent className="pt-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Uploading: {uploadProgress.current} / {uploadProgress.total}</span>
+                            <span>{Math.round((uploadProgress.current / uploadProgress.total) * 100)}%</span>
+                          </div>
+                          <Progress value={(uploadProgress.current / uploadProgress.total) * 100} />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-green-600" />
+                              {uploadProgress.successCount} success
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 text-red-600" />
+                              {uploadProgress.errorCount} failed
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Preview Table */}
+                  <ScrollArea className="h-[400px] rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">Status</TableHead>
+                          <TableHead className="w-12">#</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Currency</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Notes</TableHead>
+                          <TableHead className="w-12">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {parsedRows.map((row) => (
+                          <TableRow key={row.rowNumber} className={!row.isValid ? "bg-red-50 dark:bg-red-950/20" : ""}>
+                            <TableCell>
+                              {row.status === 'success' && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                              {row.status === 'failed' && <AlertCircle className="w-4 h-4 text-red-600" />}
+                              {row.status === 'uploading' && <Upload className="w-4 h-4 animate-pulse" />}
+                              {row.status === 'pending' && row.isValid && <CheckCircle2 className="w-4 h-4 text-gray-400" />}
+                              {row.status === 'pending' && !row.isValid && <AlertCircle className="w-4 h-4 text-red-600" />}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{row.rowNumber}</TableCell>
+                            <TableCell>
+                              <Badge variant={row.data.type === 'expense' ? 'destructive' : 'default'}>
+                                {row.data.type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{row.data.amount}</TableCell>
+                            <TableCell>{row.data.currency}</TableCell>
+                            <TableCell className="text-xs">{row.data.date}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-xs">{row.data.notes || '-'}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveRow(row.rowNumber)}
+                                disabled={row.status === 'uploading' || row.status === 'success'}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {parsedRows.map((row) => (
+                          row.errors.length > 0 && (
+                            <TableRow key={`error-${row.rowNumber}`} className="bg-red-50 dark:bg-red-950/20">
+                              <TableCell colSpan={8}>
+                                <div className="flex items-start gap-2 text-xs text-red-600 dark:text-red-400">
+                                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <span className="font-semibold">Row {row.rowNumber} errors:</span>
+                                    <ul className="list-disc list-inside mt-1">
+                                      {row.errors.map((error, i) => (
+                                        <li key={i}>{error}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+
+                  <div className="flex justify-between gap-2">
+                    <Button variant="outline" onClick={handleBackToUpload}>
+                      Back to Upload
+                    </Button>
+                    <Button 
+                      onClick={handleConfirmImport}
+                      disabled={parsedRows.filter(r => r.isValid).length === 0 || uploadProgress.total > 0}
+                      data-testid="button-confirm-import"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import {parsedRows.filter(r => r.isValid).length} Valid Records
+                    </Button>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
 
