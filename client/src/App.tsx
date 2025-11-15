@@ -216,20 +216,37 @@ function ProtectedRoute({ component: Component, pageKey }: { component: React.Co
       );
     }
 
+    const handleLogout = () => {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth-change"));
+      window.location.href = "/login";
+    };
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
           <div className="text-red-500 text-6xl mb-4">🔒</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 mb-6">
             You don't have permission to access this page. Please contact your administrator if you believe this is an error.
           </p>
-          <button 
-            onClick={() => window.history.back()} 
-            className="text-blue-600 hover:text-blue-800 font-medium"
-          >
-            Go Back
-          </button>
+          <div className="flex gap-4 justify-center">
+            <button 
+              onClick={() => window.history.back()} 
+              className="px-4 py-2 text-blue-600 hover:text-blue-800 font-medium border border-blue-600 rounded hover-elevate"
+              data-testid="button-go-back"
+            >
+              Go Back
+            </button>
+            <button 
+              onClick={handleLogout} 
+              className="px-4 py-2 bg-red-600 text-white rounded hover-elevate"
+              data-testid="button-logout"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     );
