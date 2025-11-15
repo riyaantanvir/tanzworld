@@ -4,6 +4,14 @@ Advantix Admin is a full-stack web application designed to streamline digital ad
 
 # Recent Changes
 
+## Nov 15, 2025: CSV Import Enhancement
+- **Upgraded CSV parsing** to use Papaparse library for robust handling of quoted values, commas inside fields, and various CSV edge cases
+- **Added error preview table** before import with row-by-row validation showing validation errors inline
+- **Implemented upload progress bar** with real-time status tracking for each row (pending/success/error)
+- **Fixed header normalization** using transformHeader to handle mixed-case column names (Type/type, ProjectId/projectid)
+- **Added row removal feature** allowing users to delete invalid rows before confirming import
+- **Enhanced validation messages** with clear error descriptions for type, amount, currency, and date fields
+
 ## Nov 13, 2025: Database Schema Fixes
 - Fixed user creation by adding missing `gher_invoices` column to `user_menu_permissions` table via SQL ALTER TABLE
 - Column was defined in shared/schema.ts but missing from database, causing 500 errors when creating users or toggling permissions
