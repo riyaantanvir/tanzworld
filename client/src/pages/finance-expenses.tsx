@@ -224,11 +224,11 @@ export default function FinanceExpenses() {
             return;
           }
 
-          // Check for required columns
+          // Check for required columns (headers are already lowercased by transformHeader)
           const headers = results.meta.fields || [];
           const requiredFields = ['type', 'amount', 'currency', 'date'];
           const missingFields = requiredFields.filter(field => 
-            !headers.some(h => h.toLowerCase() === field)
+            !headers.includes(field)
           );
           
           if (missingFields.length > 0) {
@@ -240,7 +240,7 @@ export default function FinanceExpenses() {
             return;
           }
 
-          // Parse and validate each row
+          // Parse and validate each row (all keys are lowercase due to transformHeader)
           const rows = results.data.map((row: any, index: number) => {
             const errors: string[] = [];
             
@@ -249,7 +249,7 @@ export default function FinanceExpenses() {
             const currency = (row.currency || '').trim();
             const date = (row.date || '').trim();
             const notes = (row.notes || '').trim();
-            const projectId = (row.projectid || row.projectId || '').trim();
+            const projectId = (row.projectid || '').trim(); // projectid is lowercase due to transformHeader
 
             // Validate type
             if (!type || (type !== 'expense' && type !== 'salary')) {
