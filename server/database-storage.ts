@@ -1144,6 +1144,9 @@ export class DatabaseStorage implements IStorage {
       'ownFarming': 'ownFarming',
       'newCreated': 'newCreated',
       'farmingAccounts': 'farmingAccounts',
+      'ownFarmingDashboard': 'ownFarmingDashboard',
+      'ownFarmingSettings': 'ownFarmingSettings',
+      'mailManagement': 'mailManagement',
       'gher_management': 'gherManagement',
       'gher_invoices': 'gherInvoices',
       'finance': 'advantixDashboard', // Finance uses multiple fields, checking main one
