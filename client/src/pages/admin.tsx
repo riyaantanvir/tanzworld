@@ -81,6 +81,9 @@ function UserManagement() {
       ownFarming: false,
       newCreated: false,
       farmingAccounts: false,
+      ownFarmingDashboard: false,
+      ownFarmingSettings: false,
+      mailManagement: false,
       gherManagement: false,
       advantixDashboard: false,
       projects: false,
@@ -152,6 +155,9 @@ function UserManagement() {
           ownFarming: permission === 'ownFarming' ? value : false,
           newCreated: permission === 'newCreated' ? value : false,
           farmingAccounts: permission === 'farmingAccounts' ? value : false,
+          ownFarmingDashboard: permission === 'ownFarmingDashboard' ? value : false,
+          ownFarmingSettings: permission === 'ownFarmingSettings' ? value : false,
+          mailManagement: permission === 'mailManagement' ? value : false,
           advantixDashboard: permission === 'advantixDashboard' ? value : false,
           projects: permission === 'projects' ? value : false,
           payments: permission === 'payments' ? value : false,
@@ -204,6 +210,9 @@ function UserManagement() {
         ownFarming: false,
         newCreated: false,
         farmingAccounts: false,
+        ownFarmingDashboard: false,
+        ownFarmingSettings: false,
+        mailManagement: false,
         advantixDashboard: false,
         projects: false,
         payments: false,
@@ -338,6 +347,9 @@ function UserManagement() {
         ownFarming: false,
         newCreated: false,
         farmingAccounts: false,
+        ownFarmingDashboard: false,
+        ownFarmingSettings: false,
+        mailManagement: false,
         gherManagement: false,
         advantixDashboard: false,
         projects: false,
@@ -522,6 +534,9 @@ function UserManagement() {
                   <TableHead className="text-center font-semibold">Own Farming</TableHead>
                   <TableHead className="text-center font-semibold">New Created</TableHead>
                   <TableHead className="text-center font-semibold">Farming Accounts</TableHead>
+                  <TableHead className="text-center font-semibold">Dashboard (OF)</TableHead>
+                  <TableHead className="text-center font-semibold">Settings (OF)</TableHead>
+                  <TableHead className="text-center font-semibold">Mail Mgmt</TableHead>
                   <TableHead className="text-center font-semibold">Admin Panel</TableHead>
                   <TableHead className="text-center font-semibold">Gher Management</TableHead>
                   <TableHead className="text-center font-semibold">Actions</TableHead>
@@ -530,7 +545,7 @@ function UserManagement() {
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={19} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={22} className="text-center py-8 text-gray-500">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -730,6 +745,42 @@ function UserManagement() {
                           </div>
                           <span className={`text-sm font-medium ${permissions.farmingAccounts ? 'text-green-600' : 'text-red-600'}`}>
                             {permissions.farmingAccounts ? 'Yes' : 'No'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Switch
+                              checked={permissions.ownFarmingDashboard || false}
+                              onCheckedChange={(checked) => handlePermissionToggle(user.id, 'ownFarmingDashboard', checked)}
+                              data-testid={`switch-own-farming-dashboard-${user.id}`}
+                            />
+                          </div>
+                          <span className={`text-sm font-medium ${permissions.ownFarmingDashboard ? 'text-green-600' : 'text-red-600'}`}>
+                            {permissions.ownFarmingDashboard ? 'Yes' : 'No'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Switch
+                              checked={permissions.ownFarmingSettings || false}
+                              onCheckedChange={(checked) => handlePermissionToggle(user.id, 'ownFarmingSettings', checked)}
+                              data-testid={`switch-own-farming-settings-${user.id}`}
+                            />
+                          </div>
+                          <span className={`text-sm font-medium ${permissions.ownFarmingSettings ? 'text-green-600' : 'text-red-600'}`}>
+                            {permissions.ownFarmingSettings ? 'Yes' : 'No'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Switch
+                              checked={permissions.mailManagement || false}
+                              onCheckedChange={(checked) => handlePermissionToggle(user.id, 'mailManagement', checked)}
+                              data-testid={`switch-mail-management-${user.id}`}
+                            />
+                          </div>
+                          <span className={`text-sm font-medium ${permissions.mailManagement ? 'text-green-600' : 'text-red-600'}`}>
+                            {permissions.mailManagement ? 'Yes' : 'No'}
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
