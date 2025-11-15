@@ -57,6 +57,8 @@ import {
   type FarmingAccount,
   type InsertFarmingAccount,
   type FarmingAccountWithSecrets,
+  type EmailAccount,
+  type InsertEmailAccount,
   type GherTag,
   type InsertGherTag,
   type GherPartner,
@@ -104,6 +106,7 @@ import {
   campaignTemplates,
   savedAudiences,
   farmingAccounts,
+  emailAccounts,
   gherTags,
   gherPartners,
   gherCapitalTransactions,
@@ -2582,6 +2585,49 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("[DB ERROR] Failed to export farming accounts:", error);
       return [];
+    }
+  }
+
+  // Email Accounts Management
+  async getEmailAccounts(): Promise<EmailAccount[]> {
+    try {
+      return await db.select().from(emailAccounts).orderBy(desc(emailAccounts.createdAt));
+    } catch (error) {
+      console.error("[DB ERROR] Failed to fetch email accounts:", error);
+      return [];
+    }
+  }
+
+  async createEmailAccount(account: InsertEmailAccount): Promise<EmailAccount> {
+    try {
+      const result = await db.insert(emailAccounts).values(account).returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to create email account:", error);
+      throw error;
+    }
+  }
+
+  async updateEmailAccount(id: string, account: Partial<InsertEmailAccount>): Promise<EmailAccount | undefined> {
+    try {
+      const result = await db.update(emailAccounts)
+        .set({ ...account, updatedAt: new Date() })
+        .where(eq(emailAccounts.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("[DB ERROR] Failed to update email account:", error);
+      throw error;
+    }
+  }
+
+  async deleteEmailAccount(id: string): Promise<boolean> {
+    try {
+      const result = await db.delete(emailAccounts).where(eq(emailAccounts.id, id)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("[DB ERROR] Failed to delete email account:", error);
+      return false;
     }
   }
 

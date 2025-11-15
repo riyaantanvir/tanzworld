@@ -1035,6 +1035,31 @@ export interface FarmingAccountWithSecrets extends FarmingAccount {
   passwordDecrypted: string; // Copy of password field for consistency with frontend
 }
 
+// Email Accounts - For tracking email accounts used in farming/management
+export const emailAccounts = pgTable("email_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  provider: text("provider"), // e.g., "Gmail", "Outlook", etc.
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertEmailAccountSchema = createInsertSchema(emailAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  email: z.string().email("Valid email is required"),
+  password: z.string().min(1, "Password is required"),
+  provider: z.string().optional().or(z.literal('')),
+  notes: z.string().optional().or(z.literal('')),
+});
+
+export type InsertEmailAccount = z.infer<typeof insertEmailAccountSchema>;
+export type EmailAccount = typeof emailAccounts.$inferSelect;
+
 // Gher Management - Expense/Income tracking with partners
 export const gherTags = pgTable("gher_tags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -5477,6 +5477,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Accounts Management
+  app.get("/api/email-accounts", authenticate, async (req: Request, res: Response) => {
+    try {
+      const accounts = await storage.getEmailAccounts();
+      res.json(accounts);
+    } catch (error) {
+      console.error("Get email accounts error:", error);
+      res.status(500).json({ message: "Failed to fetch email accounts" });
+    }
+  });
+
+  app.post("/api/email-accounts", authenticate, async (req: Request, res: Response) => {
+    try {
+      const account = await storage.createEmailAccount(req.body);
+      res.status(201).json(account);
+    } catch (error) {
+      console.error("Create email account error:", error);
+      res.status(500).json({ message: "Failed to create email account" });
+    }
+  });
+
+  app.patch("/api/email-accounts/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const account = await storage.updateEmailAccount(req.params.id, req.body);
+      if (!account) {
+        return res.status(404).json({ message: "Email account not found" });
+      }
+      res.json(account);
+    } catch (error) {
+      console.error("Update email account error:", error);
+      res.status(500).json({ message: "Failed to update email account" });
+    }
+  });
+
+  app.delete("/api/email-accounts/:id", authenticate, async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deleteEmailAccount(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Email account not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete email account error:", error);
+      res.status(500).json({ message: "Failed to delete email account" });
+    }
+  });
+
   // Gher Management - Tags
   app.get("/api/gher/tags", authenticate, async (req: Request, res: Response) => {
     try {
