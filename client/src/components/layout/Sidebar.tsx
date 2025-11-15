@@ -184,6 +184,13 @@ export default function Sidebar({ children }: SidebarProps) {
       isSection: true,
       subItems: [
         {
+          href: "/own-farming/dashboard",
+          icon: LayoutDashboard,
+          label: "Dashboard",
+          testId: "nav-own-farming-dashboard",
+          pageKey: "ownFarmingDashboard"
+        },
+        {
           href: "/own-farming/new-created",
           icon: Sparkles,
           label: "New Created",
@@ -196,6 +203,20 @@ export default function Sidebar({ children }: SidebarProps) {
           label: "Farming Accounts",
           testId: "nav-own-farming-farming-accounts",
           pageKey: "farmingAccounts"
+        },
+        {
+          href: "/own-farming/settings",
+          icon: Settings,
+          label: "Settings",
+          testId: "nav-own-farming-settings",
+          pageKey: "ownFarmingSettings"
+        },
+        {
+          href: "/own-farming/mail-management",
+          icon: Mail,
+          label: "Mail Management",
+          testId: "nav-own-farming-mail",
+          pageKey: "mailManagement"
         }
       ]
     },
@@ -369,6 +390,30 @@ export default function Sidebar({ children }: SidebarProps) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const ownFarmingDashboardPermission = useQuery({
+    queryKey: [`/api/permissions/check/ownFarmingDashboard`],
+    enabled: !!user && user.role !== 'super_admin',
+    retry: false,
+    select: (data: any) => data?.hasPermission ?? false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const ownFarmingSettingsPermission = useQuery({
+    queryKey: [`/api/permissions/check/ownFarmingSettings`],
+    enabled: !!user && user.role !== 'super_admin',
+    retry: false,
+    select: (data: any) => data?.hasPermission ?? false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const mailManagementPermission = useQuery({
+    queryKey: [`/api/permissions/check/mailManagement`],
+    enabled: !!user && user.role !== 'super_admin',
+    retry: false,
+    select: (data: any) => data?.hasPermission ?? false,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const fbAdManagementPermission = useQuery({
     queryKey: [`/api/permissions/check/fb_ad_management`],
     enabled: !!user && user.role !== 'super_admin',
@@ -420,6 +465,9 @@ export default function Sidebar({ children }: SidebarProps) {
       case 'ownFarming': return ownFarmingPermission.data;
       case 'newCreated': return newCreatedPermission.data;
       case 'farmingAccounts': return farmingAccountsPermission.data;
+      case 'ownFarmingDashboard': return ownFarmingDashboardPermission.data;
+      case 'ownFarmingSettings': return ownFarmingSettingsPermission.data;
+      case 'mailManagement': return mailManagementPermission.data;
       case 'client_mailbox': return clientMailboxPermission.data;
       case 'fb_ad_management': return fbAdManagementPermission.data;
       case 'finance': return financePermission.data;

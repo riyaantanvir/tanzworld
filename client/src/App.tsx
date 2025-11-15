@@ -25,6 +25,9 @@ import FBAdManagementPage from "@/pages/fb-ad-management";
 import AdvantixAdsManager from "@/pages/advantix-ads-manager";
 import NewCreatedPage from "@/pages/own-farming/new-created";
 import FarmingAccountsPage from "@/pages/own-farming/farming-accounts";
+import OwnFarmingDashboard from "@/pages/own-farming/dashboard";
+import OwnFarmingSettings from "@/pages/own-farming/settings";
+import MailManagementPage from "@/pages/own-farming/mail-management";
 import GherDashboard from "@/pages/gher-dashboard";
 import GherExpense from "@/pages/gher-expense";
 import GherPartner from "@/pages/gher-partner";
@@ -274,8 +277,11 @@ function Router() {
       <Route path="/finance/reports" component={() => <ProtectedRoute component={FinanceReports} pageKey="finance" />} />
       <Route path="/fb-ad-management" component={() => <ProtectedRoute component={FBAdManagementPage} pageKey="fb_ad_management" />} />
       <Route path="/advantix-ads" component={() => <ProtectedRoute component={AdvantixAdsManager} pageKey="advantix_ads_manager" />} />
-      <Route path="/own-farming/new-created" component={() => <ProtectedRoute component={NewCreatedPage} pageKey="ownFarming" />} />
-      <Route path="/own-farming/farming-accounts" component={() => <ProtectedRoute component={FarmingAccountsPage} pageKey="ownFarming" />} />
+      <Route path="/own-farming/dashboard" component={() => <ProtectedRoute component={OwnFarmingDashboard} pageKey="ownFarmingDashboard" />} />
+      <Route path="/own-farming/new-created" component={() => <ProtectedRoute component={NewCreatedPage} pageKey="newCreated" />} />
+      <Route path="/own-farming/farming-accounts" component={() => <ProtectedRoute component={FarmingAccountsPage} pageKey="farmingAccounts" />} />
+      <Route path="/own-farming/settings" component={() => <ProtectedRoute component={OwnFarmingSettings} pageKey="ownFarmingSettings" />} />
+      <Route path="/own-farming/mail-management" component={() => <ProtectedRoute component={MailManagementPage} pageKey="mailManagement" />} />
       <Route path="/gher/dashboard" component={() => <ProtectedRoute component={GherDashboard} pageKey="gher_management" />} />
       <Route path="/gher/expense" component={() => <ProtectedRoute component={GherExpense} pageKey="gher_management" />} />
       <Route path="/gher/partner" component={() => <ProtectedRoute component={GherPartner} pageKey="gher_management" />} />
