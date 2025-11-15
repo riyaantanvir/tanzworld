@@ -5492,9 +5492,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const account = await storage.createEmailAccount(req.body);
       res.status(201).json(account);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Create email account error:", error);
-      res.status(500).json({ message: "Failed to create email account" });
+      
+      // Map database errors to user-friendly messages
+      let statusCode = 500;
+      let userMessage = "Failed to create email account";
+      
+      if (error.code === '42P01') { // Table does not exist
+        statusCode = 503;
+        userMessage = "Service temporarily unavailable. Please contact administrator.";
+        console.error("CRITICAL: email_accounts table missing. Run database migrations.");
+      } else if (error.code === '23505') { // Unique constraint violation
+        statusCode = 400;
+        userMessage = "An email account with this address already exists";
+      } else if (error.code === '23503') { // Foreign key violation
+        statusCode = 400;
+        userMessage = "Invalid reference data provided";
+      } else if (error.name === 'ValidationError' || error instanceof z.ZodError) {
+        statusCode = 400;
+        userMessage = "Invalid input data";
+      }
+      
+      res.status(statusCode).json({ message: userMessage });
     }
   });
 

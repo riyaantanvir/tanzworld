@@ -84,6 +84,20 @@ Preferred communication style: Simple, everyday language.
     - **Audit Log System**: Comprehensive logging for all Gher operations (create/update/delete) with before/after diffs, multi-criteria filtering, and pagination.
     - **Invoice System**: Professional PDF invoice generation with detailed transaction-level breakdown grouped by tags, multi-page support, and Bengali font integration.
 
+# Environment Variables
+
+## Required for All Environments
+- `DATABASE_URL` - PostgreSQL connection string
+- `PORT` - Application port (default: 5000)
+- `NODE_ENV` - Environment mode (development/production)
+
+## Feature-Specific Variables
+- `ENCRYPTION_SECRET` - Required for email accounts and farming accounts encryption (generate with: `openssl rand -base64 32`)
+- `FACEBOOK_APP_ID` - Required for Facebook ad integration
+- `FACEBOOK_APP_SECRET` - Required for Facebook ad integration
+
+**Important:** Always ensure production environment has the same variables as development to prevent "works locally but fails in production" issues.
+
 # External Dependencies
 
 ## Core Technologies
