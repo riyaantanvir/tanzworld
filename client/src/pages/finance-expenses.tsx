@@ -202,6 +202,31 @@ export default function FinanceExpenses() {
     }
   };
 
+  const handleDownloadExample = () => {
+    const exampleCSV = `Type,Amount,Currency,Date,Notes,ProjectId
+expense,5000.00,BDT,2025-01-15,Office rent payment,
+expense,1200.50,USD,2025-01-20,Software licenses,
+salary,45000.00,BDT,2025-01-31,Monthly salary - January,
+expense,850.00,BDT,2025-02-05,"Marketing materials, flyers and banners",
+expense,2500.00,USD,2025-02-10,Cloud hosting services,
+salary,48000.00,BDT,2025-02-28,Monthly salary - February,`;
+
+    const blob = new Blob([exampleCSV], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'finance-expenses-example.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Example Downloaded",
+      description: "Check your downloads folder for the example CSV file",
+    });
+  };
+
   const handlePreviewCsv = async () => {
     if (!csvFile) return;
 
@@ -611,9 +636,20 @@ export default function FinanceExpenses() {
                   </div>
                   
                   <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <h4 className="font-medium text-sm mb-2">Required CSV Format:</h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-sm">Required CSV Format:</h4>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleDownloadExample}
+                        data-testid="button-download-example"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Download Example
+                      </Button>
+                    </div>
                     <code className="text-xs bg-white dark:bg-gray-900 p-2 rounded block">
-                      type,amount,currency,date,notes,projectId
+                      Type,Amount,Currency,Date,Notes,ProjectId
                       <br />
                       expense,1500,BDT,2025-01-15,Office supplies,
                       <br />
@@ -624,7 +660,7 @@ export default function FinanceExpenses() {
                       • amount: numeric value<br />
                       • currency: "USD" or "BDT"<br />
                       • date: YYYY-MM-DD format<br />
-                      • notes: description (optional)<br />
+                      • notes: description (optional, use quotes if contains commas)<br />
                       • projectId: project ID or empty for general
                     </p>
                   </div>
