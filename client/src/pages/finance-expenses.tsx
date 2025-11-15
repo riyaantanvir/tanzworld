@@ -337,9 +337,13 @@ export default function FinanceExpenses() {
 
       try {
         const response = await apiRequest("POST", "/api/finance/expenses", {
-          ...row.data,
-          date: new Date(row.data.date),
+          type: row.data.type,
           amount: parseFloat(row.data.amount),
+          currency: row.data.currency,
+          date: new Date(row.data.date),
+          notes: row.data.notes || null,
+          projectId: row.data.projectId || null,
+          employeeId: null, // CSV doesn't include employee reference
         });
 
         await response.json();
@@ -348,10 +352,16 @@ export default function FinanceExpenses() {
         setParsedRows(prev => prev.map(r => 
           r.rowNumber === row.rowNumber ? { ...r, status: 'success' as const } : r
         ));
-      } catch (error) {
+      } catch (error: any) {
         errorCount++;
+        const errorMessage = error.message || "Upload failed";
+        console.error(`Row ${row.rowNumber} failed:`, errorMessage, error);
         setParsedRows(prev => prev.map(r => 
-          r.rowNumber === row.rowNumber ? { ...r, status: 'failed' as const } : r
+          r.rowNumber === row.rowNumber ? { 
+            ...r, 
+            status: 'failed' as const,
+            errors: [...r.errors, errorMessage]
+          } : r
         ));
       }
 
