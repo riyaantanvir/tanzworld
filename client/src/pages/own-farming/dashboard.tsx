@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CheckCircle, XCircle, Clock, Mail, TrendingUp } from "lucide-react";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function OwnFarmingDashboard() {
   const { data: farmingAccounts, isLoading } = useQuery<any[]>({
@@ -14,14 +15,20 @@ export default function OwnFarmingDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <Sidebar>
+        <div className="flex-1 overflow-auto">
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </Sidebar>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <Sidebar>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground" data-testid="text-page-title">Own Farming Dashboard</h1>
         <p className="text-muted-foreground mt-2">Monitor your farming accounts and performance</p>
@@ -213,6 +220,8 @@ export default function OwnFarmingDashboard() {
           </CardContent>
         </Card>
       </div>
-    </div>
+        </div>
+      </div>
+    </Sidebar>
   );
 }

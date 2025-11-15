@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, Mail, Trash2, Edit, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import Sidebar from "@/components/layout/Sidebar";
 import {
   Dialog,
   DialogContent,
@@ -43,10 +44,7 @@ export default function MailManagementPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return apiRequest("/api/email-accounts", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/email-accounts", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/email-accounts"] });
@@ -61,10 +59,7 @@ export default function MailManagementPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      return apiRequest(`/api/email-accounts/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("PATCH", `/api/email-accounts/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/email-accounts"] });
@@ -80,9 +75,7 @@ export default function MailManagementPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/email-accounts/${id}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/email-accounts/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/email-accounts"] });
@@ -129,14 +122,20 @@ export default function MailManagementPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <Sidebar>
+        <div className="flex-1 overflow-auto">
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </Sidebar>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <Sidebar>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground" data-testid="text-page-title">Mail Management</h1>
@@ -312,6 +311,8 @@ export default function MailManagementPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </div>
+    </Sidebar>
   );
 }

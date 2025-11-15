@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function OwnFarmingSettings() {
   const { toast } = useToast();
@@ -23,7 +24,9 @@ export default function OwnFarmingSettings() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <Sidebar>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground" data-testid="text-page-title">Own Farming Settings</h1>
         <p className="text-muted-foreground mt-2">Configure your farming account preferences</p>
@@ -130,6 +133,8 @@ export default function OwnFarmingSettings() {
           </Button>
         </div>
       </div>
-    </div>
+        </div>
+      </div>
+    </Sidebar>
   );
 }
